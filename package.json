@@ -1,0 +1,8 @@
+{
+  "name": "spatial-index",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/wkgreat/spatial-index.git",
+  "author": "ke.wang <ke.wang@transwarp.io>",
+  "license": "MIT"
+}

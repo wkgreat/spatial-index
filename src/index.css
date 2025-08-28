@@ -1,0 +1,22 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+#root-div {
+    height: 100%;
+}
+
+#control-div {
+    height: 10%;
+    width: 100%;
+    background-color: black;
+}
+
+#graph-div {
+    height: 90%;
+    width: 100%;
+    background-color: black;
+}

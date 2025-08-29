@@ -364,6 +364,8 @@ class RTreeNode {
 
 class RTreeEntry {
 
+    id = 0;
+
     /**
      * @type {MBR}
      * mbr of this entry
@@ -385,6 +387,8 @@ class RTreeEntry {
     */
     geom = null;
 
+    static counter = 0;
+
     /**
      * @static
      * @param {Geometry} geom
@@ -392,6 +396,7 @@ class RTreeEntry {
     */
     static buildFromGeom(geom) {
         const entry = new RTreeEntry();
+        entry.id = RTreeEntry.counter++;
         entry.mbr = geom.mbr;
         entry.isLeaf = true;
         entry.node = null;
@@ -401,6 +406,7 @@ class RTreeEntry {
 
     static buildFromNode(node) {
         const entry = new RTreeEntry();
+        entry.id = RTreeEntry.counter++;
         entry.isLeaf = false;
         entry.node = node;
         entry.refreshMBR();

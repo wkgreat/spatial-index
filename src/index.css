@@ -7,16 +7,28 @@ body {
 
 #root-div {
     height: 100%;
+    width: 100%;
+    color: white;
+}
+
+#title-div {
+    position: fixed;
+    height: 20px;
+    left: 0px;
+    background-color: black;
+    z-index: 10;
 }
 
 #control-div {
-    height: 10%;
-    width: 100%;
+    position: fixed;
+    left: 0px;
+    top: 20px;
     background-color: black;
+    z-index: 10;
 }
 
 #graph-div {
-    height: 90%;
+    height: 100%;
     width: 100%;
     background-color: black;
 }

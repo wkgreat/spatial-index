@@ -4,13 +4,33 @@
 
 <body>
     <div id="root-div">
-        <div id="title-div">
-            <span>RTree Structure Diagram</span>
-        </div>
-        <div id="control-div">
-            <button id="the-button">Insert Random Geometry</button>
+        <div id="explain-div">
+            <div id="title-div">
+                <h2>R-Tree Structure Diagram</h2>
+            </div>
+            <div id="description-div">
+                <p>
+                    The Main graph is the structure of R-tree (node and entry contained by node and their relation).
+                    <span style="color: blue;">Blue</span> node is nonleaf node. <span
+                        style="color: green;">Green</span> node is leaf node.
+                </p>
+                <p>The top right white canvas show the mbr structure of R-tree.</p>
+                <p>
+                    Click a node or entry, the mbr of selected node or entry while be <span
+                        style="color: red;">red</span>, and their child will be
+                    <span style="color: green;">Green</span> .
+                </p>
+            </div>
+            <div id="control-div">
+                Operations:
+                <button id="the-button">Insert Random Geometry</button>
+            </div>
         </div>
         <div id="graph-div"></div>
+        <div id="canvas-div">
+            <canvas id="rtree-canvas"></canvas>
+        </div>
+
     </div>
 
 </body>

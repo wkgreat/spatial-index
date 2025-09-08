@@ -62,22 +62,22 @@ export class Geometry {
 
     static counter = 0;
 
-    static buildRandom(xmin, ymin, xmax, ymax) {
-
+    static buildRandom(ext, wmin, hmin, wmax, hmax) {
+        const [xmin, ymin, xmax, ymax] = ext;
         let x0 = randomFloat(xmin, xmax);
-        let x1 = randomFloat(xmin, xmax);
         let y0 = randomFloat(ymin, ymax);
-        let y1 = randomFloat(ymin, ymax);
-        if (x0 > x1) {
-            [x0, x1] = [x1, x0];
-        }
-        if (y0 > y1) {
-            [y0, y1] = [y1, y0];
-        }
-
+        let x1 = Math.min(x0 + randomFloat(wmin, wmax), xmax);
+        let y1 = Math.min(y0 + randomFloat(hmin, hmax), ymax);
         const g = new Geometry();
         g.id = Geometry.counter++;
         g.mbr = new MBR(x0, y0, x1, y1);
+        return g;
+    }
+
+    static buildFromMbr(mbr) {
+        const g = new Geometry();
+        g.id = Geometry.counter++;
+        g.mbr = mbr;
         return g;
     }
 };
@@ -128,13 +128,18 @@ export class RTree {
 
         leaf.addEntry(entry); // add entry to leaf
 
+        let lnode = null, rnode = null;
+
         if (leaf.entries.length > this.M) { // leaf is full, split
 
-            const [lnode, rnode] = this.splitNode(leaf);
+            [lnode, rnode] = this.splitNode(leaf);
 
-            this.adjustTree(leaf, lnode, rnode);
-
+        } else {
+            lnode = leaf;
+            rnode = null;
         }
+
+        this.adjustTree(leaf, lnode, rnode);
 
     };
 

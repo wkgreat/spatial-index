@@ -9,26 +9,39 @@ body {
     height: 100%;
     width: 100%;
     color: white;
+    background-color: black;
 }
 
-#title-div {
+#explain-div {
     position: fixed;
-    height: 20px;
     left: 0px;
-    background-color: black;
     z-index: 10;
+    background-color: black;
+    width: 500px;
 }
 
-#control-div {
-    position: fixed;
-    left: 0px;
-    top: 20px;
-    background-color: black;
-    z-index: 10;
-}
+#description-div {}
+
+#title-div {}
+
+#control-div {}
 
 #graph-div {
     height: 100%;
     width: 100%;
-    background-color: black;
+}
+
+#canvas-div {
+    position: fixed;
+    right: 0px;
+    top: 20px;
+    height: 500px;
+    width: 500px;
+    padding: 10px;
+    background-color: rgb(255, 255, 255);
+}
+
+#rtree-canvas {
+    height: 500px;
+    width: 500px;
 }

@@ -16,8 +16,10 @@ body {
     position: fixed;
     left: 0px;
     z-index: 10;
-    background-color: black;
-    width: 500px;
+    width: 1000px;
+    background: rgba(1, 255, 200, 0.1);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px)
 }
 
 #description-div {}
@@ -34,14 +36,14 @@ body {
 #canvas-div {
     position: fixed;
     right: 0px;
-    top: 20px;
-    height: 500px;
-    width: 500px;
+    top: 0px;
+    height: 300px;
+    width: 300px;
     padding: 10px;
     background-color: rgb(255, 255, 255);
 }
 
 #rtree-canvas {
-    height: 500px;
-    width: 500px;
+    height: 300px;
+    width: 300px;
 }

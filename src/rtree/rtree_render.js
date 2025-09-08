@@ -47,6 +47,8 @@ export class RTreeRender {
 
     selected_node = null;
     selected_entry = null;
+    search_mbr = null;
+    search_result_entries = [];
 
     constructor(rtree) {
 
@@ -110,6 +112,22 @@ export class RTreeRender {
             }
         }
         return null;
+    }
+
+    clearSeletedNodeAndEntry() {
+        this.selected_node = null;
+        this.selected_entry = null;
+    }
+
+    clearSearch() {
+        this.search_mbr = null;
+        this.search_result_entries = [];
+    }
+
+    setSearch(mbr, result) {
+        this.clearSeletedNodeAndEntry();
+        this.search_mbr = mbr;
+        this.search_result_entries = result;
     }
 
     render() {
@@ -203,7 +221,7 @@ export class RTreeRender {
                 } else {
                     this.selected_entry = null;
                 }
-
+                this.clearSearch();
                 that.render();
 
             }
@@ -218,7 +236,7 @@ export class RTreeRender {
                 } else {
                     this.selected_node = this.selected_entry.node;
                 }
-
+                this.clearSearch();
                 that.render();
 
             }
@@ -252,7 +270,17 @@ export class RTreeRender {
 
         const that = this;
 
-        function render_mbr(ctx, mbr, lineWidth = 1, color = 'black') {
+        function render_mbr(ctx, mbr, props) {
+
+            const defaultProps = {
+                lineWidth: 1,
+                color: 'black',
+                linedash: [],
+
+            }
+
+            const newProps = { ...defaultProps, ...props };
+
             const [xmin, ymin] = that.coordConvert(mbr.xmin, mbr.ymin);
             const [xmax, ymax] = that.coordConvert(mbr.xmax, mbr.ymax);
 
@@ -261,8 +289,9 @@ export class RTreeRender {
             const w = xmax - xmin;
             const h = ymax - ymin;
 
-            ctx.strokeStyle = color;
-            ctx.lineWidth = lineWidth;
+            ctx.strokeStyle = newProps.color;
+            ctx.lineWidth = newProps.lineWidth;
+            ctx.setLineDash(newProps.linedash);
             ctx.strokeRect(x, y, w, h);
         }
 
@@ -275,19 +304,29 @@ export class RTreeRender {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        //search mbr
+        if (this.search_mbr) {
+            render_mbr(ctx, this.search_mbr, {
+                lineWidth: 5,
+                color: 'blue'
+            });
+        }
 
         // root
         let root_mbr = this.rtree.root.entries[0].mbr;
         for (let e of this.rtree.root.entries) {
             root_mbr = root_mbr.merge(e.mbr);
         }
-        let lineWidth = 1;
-        let color = '#d3d3d3';
-        if (this.rtree.root === this.selected_node) {
-            color = 'red';
-            lineWidth = 5;
+        let props = {
+            lineWidth: 1,
+            color: '#d3d3d3',
+            linedash: [5, 3]
         }
-        render_mbr(ctx, root_mbr, lineWidth, color);
+        if (this.rtree.root === this.selected_node) {
+            props.color = 'red';
+            props.lineWidth = 5;
+        }
+        render_mbr(ctx, root_mbr, props);
 
         // not root
         const entries = [];
@@ -298,18 +337,27 @@ export class RTreeRender {
             const mbr = e.mbr;
             const n = this.getNodeContainingEntry(e);
 
-            let color = '#d3d3d3';
-            let lineWidth = 1;
-
-            if (this.selected_entry === e) { // the selected entry or the entry of corresponding selected node
-                color = 'red';
-                lineWidth = 5;
-            } else if (this.selected_node === n) { // the child node of selected node
-                color = 'green';
-                lineWidth = 2;
+            props = {
+                lineWidth: 1,
+                color: '#d3d3d3',
+                linedash: [5, 3]
             }
 
-            render_mbr(ctx, mbr, lineWidth, color);
+            if (this.selected_entry === e) { // the selected entry or the entry of corresponding selected node
+                props.color = 'red';
+                props.lineWidth = 5;
+            } else if (this.selected_node === n) { // the child node of selected node
+                props.color = 'green';
+                props.lineWidth = 2;
+            } else if (this.search_result_entries.includes(e)) {
+                props.color = 'red';
+                props.lineWidth = 2;
+            }
+            if (e.isLeaf) {
+                props.linedash = [];
+            }
+
+            render_mbr(ctx, mbr, props);
 
             if (!e.isLeaf) {
                 entries.push(...e.node.entries);

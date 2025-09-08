@@ -17,10 +17,16 @@ async function main() {
     }
     render.render();
 
-    document.getElementById("the-button").addEventListener("click", () => {
+    document.getElementById("insert-button").addEventListener("click", () => {
         const g = Geometry.buildRandom(ext, wmin, hmin, wmax, hmax);
         rtree.insert(g);
-        console.log(g.mbr.xmin, g.mbr.ymin, g.mbr.xmax, g.mbr.ymax);
+        render.render();
+    })
+
+    document.getElementById("search-button").addEventListener("click", () => {
+        const g = Geometry.buildRandom(ext, 5, 5, 50, 50);
+        const entries = rtree.search_overlap(g.mbr);
+        render.setSearch(g.mbr, entries);
         render.render();
     })
 

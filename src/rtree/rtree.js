@@ -49,6 +49,7 @@ function randomFloat(a, b) {
 
 /**
  * @class Geometry
+ * @todo This is geometry class for R-tree test. Only contains mbr without shape data now.
  * 
 */
 export class Geometry {
@@ -283,10 +284,42 @@ export class RTree {
     }
 
     /**
-     * @param {Geometry} geom
-     * @returns {Geometry[]} 
+     * @param {MBR} mbr search mbr 
+     * @param {(RTreeEntry,MBR)=>boolean} check_func check the entry and the mbr is matched
     */
-    overlap(geom) {};
+    search(mbr, check_func) {
+
+        const nodes = [];
+        const res_entries = [];
+
+        nodes.push(this.root);
+
+        while (nodes.length > 0) {
+            const node = nodes.shift();
+            if (node.isLeaf) {
+                for (let e of node.entries) {
+                    if (check_func(e, mbr)) {
+                        res_entries.push(e);
+                    }
+                }
+            } else {
+                for (let e of node.entries) {
+                    if (check_func(e, mbr)) {
+                        nodes.push(e.node);
+                    }
+                }
+            }
+        }
+
+        return res_entries;
+    };
+
+
+    search_overlap(mbr) {
+        return this.search(mbr, (entry, mbr) => {
+            return entry.mbr.overlap(mbr);
+        });
+    }
 
     /**
      * draw to graph

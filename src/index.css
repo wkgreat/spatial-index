@@ -5,6 +5,34 @@ body {
     border: none;
 }
 
+.github-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .75rem;
+    border-radius: 8px;
+    background: #111;
+    /* GitHub dark */
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .3);
+}
+
+.github-btn svg {
+    display: block;
+}
+
+.github-btn:focus {
+    outline: 3px solid rgba(3, 102, 214, .3);
+    outline-offset: 2px;
+}
+
+.github-btn:hover {
+    transform: translateY(-1px);
+}
+
 #root-div {
     height: 100%;
     width: 100%;
@@ -15,22 +43,35 @@ body {
 #explain-div {
     position: fixed;
     left: 0px;
-    z-index: 10;
-    width: 1000px;
+    top: 0px;
+    z-index: 5;
+    height: 100%;
+    width: 20%;
+    padding: 10px;
     background: rgba(1, 255, 200, 0.1);
     backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px)
+    -webkit-backdrop-filter: blur(5px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
-
-#description-div {}
 
 #title-div {}
 
-#control-div {}
+#panel-div {}
+
+#description-div {}
+
+#control-div {
+    display: flex;
+}
 
 #graph-div {
+    position: fixed;
     height: 100%;
-    width: 100%;
+    width: 80%;
+    right: 0px;
 }
 
 #canvas-div {

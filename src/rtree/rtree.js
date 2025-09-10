@@ -1,3 +1,5 @@
+import Probe from "./probe";
+
 /**
  * @class MBR
  * Minimum Bounding Rectangle
@@ -48,7 +50,38 @@ function randomFloat(a, b) {
 }
 
 /**
+ * @class RTreeRecord
+ * @template T
+ * A leaf node point to a RTreeRecord object
+ * RTreeRecord contains a data field (geometry object or other object contains spatial information) and a mbr and a record id.
+ * @todo replace RTreeEntry geom field to record field
+*/
+export class RTreeRecord {
+
+    /**@type {number}*/
+    id = 0;
+    /**@type {MBR}*/
+    mbr = null;
+    /**@type {T}*/
+    data = null;
+
+    static counter = 0;
+
+    /**
+     * @constructor
+     * @param {T} data
+     * @param {(T)=>MBR} toMBRFunc  
+    */
+    constructor(data, toMBRFunc) {
+        this.data = data;
+        this.mbr = toMBRFunc(data);
+        this.id = RTreeRecord.counter++;
+    }
+}
+
+/**
  * @class Geometry
+ * @todo This is geometry class for R-tree test. Only contains mbr without shape data now.
  * 
 */
 export class Geometry {
@@ -62,22 +95,22 @@ export class Geometry {
 
     static counter = 0;
 
-    static buildRandom(xmin, ymin, xmax, ymax) {
-
+    static buildRandom(ext, wmin, hmin, wmax, hmax) {
+        const [xmin, ymin, xmax, ymax] = ext;
         let x0 = randomFloat(xmin, xmax);
-        let x1 = randomFloat(xmin, xmax);
         let y0 = randomFloat(ymin, ymax);
-        let y1 = randomFloat(ymin, ymax);
-        if (x0 > x1) {
-            [x0, x1] = [x1, x0];
-        }
-        if (y0 > y1) {
-            [y0, y1] = [y1, y0];
-        }
-
+        let x1 = Math.min(x0 + randomFloat(wmin, wmax), xmax);
+        let y1 = Math.min(y0 + randomFloat(hmin, hmax), ymax);
         const g = new Geometry();
         g.id = Geometry.counter++;
         g.mbr = new MBR(x0, y0, x1, y1);
+        return g;
+    }
+
+    static buildFromMbr(mbr) {
+        const g = new Geometry();
+        g.id = Geometry.counter++;
+        g.mbr = mbr;
         return g;
     }
 };
@@ -92,6 +125,9 @@ export class RTree {
     /**@type {RTreeNode|null}*/
     root = null;
 
+    /**@type {Probe}*/
+    probe = null;
+
     /**
      * @constructor 
      * @param {number} m - minimum number of entries in a node, m should be little or equal than M.
@@ -100,6 +136,12 @@ export class RTree {
     constructor(m, M) {
         this.m = m;
         this.M = M;
+    }
+
+    __probe__(tag, data) {
+        if (this.probe) {
+            this.probe.probe(tag, data);
+        }
     }
 
     /**
@@ -112,10 +154,103 @@ export class RTree {
     };
 
     /**
+     * @returns {number} the level of leaf node
+     * the root level is zero.
+    */
+    getLeafLevel() {
+        if (this.root == null) {
+            return -1;
+        }
+        let l = 0;
+        let n = this.root;
+        while (!n.isLeaf) {
+            n = n.entries[0].node;
+            l += 1;
+        }
+        return l;
+    }
+
+    /**
+     * @param {RTreeNode} node
+     * @returns {number} get depth from node downward 
+     * leaf node depth is zero.
+    */
+    getDepthFromNode(node) {
+        let depth = 0;
+        let n = node;
+        while (!n.isLeaf) {
+            n = n.entries[0].node;
+            depth += 1;
+        }
+        return depth;
+    }
+
+    insertEntry(entry, level) {
+
+        let pnode = this._chooseNodeEntryIn(entry, level);
+
+        pnode.addEntry(entry); // add entry to pnode
+
+        let lnode = null, rnode = null;
+
+        if (pnode.entries.length > this.M) { // leaf is full, split
+
+            [lnode, rnode] = this.splitNode(pnode);
+
+        } else {
+            lnode = pnode;
+            rnode = null;
+        }
+
+        this.adjustTree(pnode, lnode, rnode);
+    }
+
+    _chooseNodeEntryIn(entry, entry_level) {
+        if (this.root === null) {
+            this.root = RTreeNode.buildRoot();
+        }
+
+        let level = 0;
+        let N = this.root;
+
+        while (level < entry_level) {
+
+            let bestEntry = null;
+            let bestCost = Infinity;
+            let bestArea = Infinity;
+
+            for (let e of N.entries) {
+                let a0 = e.mbr.area();
+                let a1 = e.mbr.merge(entry.mbr).area();
+                let cost = a1 - a0;
+                if (cost < bestCost) {
+                    bestEntry = e;
+                    bestCost = cost;
+                    bestArea = a0;
+                } else if (cost === bestCost) {
+                    if (a0 < bestArea) {
+                        bestEntry = e;
+                        bestCost = cost;
+                        bestArea = a0;
+                    }
+                }
+            }
+
+            N = bestEntry.node;
+            level += 1;
+
+        }
+
+        return N;
+    }
+
+    /**
      * @param {Geometry} geom 
      * @returns {void}
     */
     insert(geom) {
+
+        this.__probe__("rtree:insert:start", { target: this, geom: geom });
 
         if (geom === null) {
             console.error("not support null geom now.");
@@ -128,13 +263,20 @@ export class RTree {
 
         leaf.addEntry(entry); // add entry to leaf
 
+        let lnode = null, rnode = null;
+
         if (leaf.entries.length > this.M) { // leaf is full, split
 
-            const [lnode, rnode] = this.splitNode(leaf);
+            [lnode, rnode] = this.splitNode(leaf);
 
-            this.adjustTree(leaf, lnode, rnode);
-
+        } else {
+            lnode = leaf;
+            rnode = null;
         }
+
+        this.adjustTree(leaf, lnode, rnode);
+
+        this.__probe__("rtree:insert:finish", { target: this, geom: geom });
 
     };
 
@@ -236,10 +378,112 @@ export class RTree {
     }
 
     /**
+     * @private
+     * @param {RTreeNode} node
+     * @param {RTreeEntry} entry  
+    */
+    _removeEntryFromNode(node, entry) {
+        node.entries.splice(node.entries.indexOf(entry), 1);
+    }
+
+    /**
      * @param {Geometry} geom 
      * @returns {void}
     */
-    delete(geom) {};
+    delete(geom) {
+
+        this.__probe__("rtree:delete:start", { target: this, geom: geom });
+
+        const [leaf, entry] = this.findLeaf(geom);
+        if (leaf === null || entry === null) {
+            return;
+        }
+
+        this._removeEntryFromNode(leaf, entry);
+        const level = this.getLeafLevel();
+        this.condenseTree(leaf, level);
+
+        if (this.root.entries.length === 1 && !this.root.isLeaf) {
+            const newRoot = this.root.entries[0].node;
+            newRoot.parent = null;
+            newRoot.entry = null;
+            this.root = newRoot;
+        }
+
+        this.__probe__("rtree:delete:finish", { target: this, geom: geom });
+    };
+
+    /**
+     * @param {Geometry} geom
+     * @returns {[RTreeNode,RTreeEntry]} 
+    */
+    findLeaf(geom) {
+
+        const nodes = []; //stack of nodes
+        nodes.push(this.root);
+        while (nodes.length > 0) {
+            const node = nodes.pop();
+            if (!node.isLeaf) {
+                for (let e of node.entries) {
+                    if (geom.mbr.overlap(e.mbr)) {
+                        nodes.push(e.node);
+                    }
+                }
+            } else {
+                for (let e of node.entries) {
+                    if (e.geom === geom) { //here check geom is equal
+                        return [node, e];
+                    }
+                }
+            }
+        }
+        return [null, null];
+    };
+
+    _getEntryInsertLevelByNode(node) {
+        const level = this.getLeafLevel();
+        const depth = this.getDepthFromNode(node);
+        return level - depth;
+    }
+
+    /**
+     * @param {RTreeNode} node the node need condense 
+     * @param {number} level the level of node 
+     * @returns {void}
+    */
+    condenseTree(node, level) {
+
+        const q = [];
+        let n = node;
+        let l = level;
+
+        while (n != this.root) { // if n is not root node
+
+            const p = n.parent;
+            const e = n.entry;
+
+            if (n.entries.length < this.m) { // need delete node n and delete entry e of n  
+
+                this._removeEntryFromNode(p, e);// delete entry from parent node
+                q.push(n); // q add deleted n
+
+            } else { // not delete and refresh mbr of entry e
+                e.refreshMBR();
+            }
+
+            n = n.parent; //move upward
+            l -= 1;
+
+        }
+
+        // here n is already root node. reinsert
+        for (let n of q) {
+            const level = this._getEntryInsertLevelByNode(n);
+            for (let e of n.entries) {
+                this.insertEntry(e, level);
+            }
+        }
+    }
 
 
     /**
@@ -249,8 +493,6 @@ export class RTree {
     splitNode(node) {
 
         //TODO temporarily simply split node to two nodes;
-
-        // debugger;
 
         const lnode = RTreeNode.buildEmptyNode();
         lnode.parent = node.parent;
@@ -278,15 +520,46 @@ export class RTree {
     }
 
     /**
-     * @param {Geometry} geom
-     * @returns {Geometry[]} 
+     * @param {MBR} mbr search mbr 
+     * @param {(RTreeEntry,MBR)=>boolean} check_func check the entry and the mbr is matched
+     * @returns {RTreeEntry[]}
     */
-    overlap(geom) {};
+    search(mbr, check_func) {
 
-    /**
-     * draw to graph
-    */
-    draw() {}
+        const nodes = [];
+        const res_entries = [];
+
+        nodes.push(this.root);
+
+        while (nodes.length > 0) {
+            const node = nodes.shift();
+            if (node.isLeaf) {
+                for (let e of node.entries) {
+                    if (check_func(e, mbr)) {
+                        res_entries.push(e);
+                    }
+                }
+            } else {
+                for (let e of node.entries) {
+                    if (check_func(e, mbr)) {
+                        nodes.push(e.node);
+                    }
+                }
+            }
+        }
+
+        return res_entries;
+    };
+
+
+    search_overlap(mbr) {
+        this.__probe__("rtree:search_overlap:start", { target: this, mbr });
+        const result = this.search(mbr, (entry, mbr) => {
+            return entry.mbr.overlap(mbr);
+        });
+        this.__probe__("rtree:search_overlap:finish", { target: this, mbr: mbr, result: result });
+        return result;
+    }
 
 };
 
@@ -344,6 +617,10 @@ class RTreeNode {
     addEntry(entry) {
 
         this.entries.push(entry);
+        this.isLeaf = entry.isLeaf;
+        if (!entry.isLeaf) {
+            entry.node.parent = this;
+        }
 
     }
 
@@ -354,11 +631,6 @@ class RTreeNode {
     getParent() {
         return this.parent;
     }
-
-    /**
-     * draw to graph
-    */
-    draw() {}
 
 }
 
@@ -448,10 +720,5 @@ class RTreeEntry {
     getGeom() {
         return this.geom;
     }
-
-    /**
-     * draw to graph
-    */
-    draw() {}
 
 };

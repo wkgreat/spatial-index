@@ -149,7 +149,7 @@ export class RTree {
      * @param {Geometry[]} geoms 
      * @returns {RTree}
     */
-    static build(geoms) {
+    static buildFromGeoms(geoms) {
         //TODO
     };
 
@@ -400,8 +400,7 @@ export class RTree {
         }
 
         this._removeEntryFromNode(leaf, entry);
-        const level = this.getLeafLevel();
-        this.condenseTree(leaf, level);
+        this.condenseTree(leaf);
 
         if (this.root.entries.length === 1 && !this.root.isLeaf) {
             const newRoot = this.root.entries[0].node;
@@ -448,14 +447,12 @@ export class RTree {
 
     /**
      * @param {RTreeNode} node the node need condense 
-     * @param {number} level the level of node 
      * @returns {void}
     */
-    condenseTree(node, level) {
+    condenseTree(node) {
 
         const q = [];
         let n = node;
-        let l = level;
 
         while (n != this.root) { // if n is not root node
 
@@ -472,8 +469,6 @@ export class RTree {
             }
 
             n = n.parent; //move upward
-            l -= 1;
-
         }
 
         // here n is already root node. reinsert
@@ -488,7 +483,7 @@ export class RTree {
 
     /**
      * @param {RTreeNode} node 
-     * @returns {RTreeNode[]} return two nodes
+     * @returns {[RTreeNode,RTreeNode]} return two nodes
     */
     splitNode(node) {
 
@@ -517,6 +512,30 @@ export class RTree {
         }
 
         return [lnode, rnode];
+    }
+
+    /**
+     * @param {RTreeNode} node
+     * @returns {[RTreeNode,RTreeNode]} 
+    */
+    _randomSplit(node) {
+        //TODO
+    }
+
+    /**
+     * @param {RTreeNode} node
+     * @returns {[RTreeNode,RTreeNode]} 
+    */
+    _linearSplit(node) {
+        //TODO
+    }
+
+    /**
+     * @param {RTreeNode} node
+     * @returns {[RTreeNode,RTreeNode]} 
+    */
+    _doubleSortSplit(node) {
+        //TODO
     }
 
     /**
@@ -552,6 +571,10 @@ export class RTree {
     };
 
 
+    /**
+     * @param {MBR} mbr
+     * @returns {RTreeEntry[]}
+    */
     search_overlap(mbr) {
         this.__probe__("rtree:search_overlap:start", { target: this, mbr });
         const result = this.search(mbr, (entry, mbr) => {

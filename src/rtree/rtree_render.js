@@ -1,7 +1,10 @@
 import cytoscape from "cytoscape";
 import { RTree } from "./rtree";
+import Probe from "./probe";
 
-export class RTreeRender {
+export class RTreeRender extends Probe {
+
+    //TODO set graph element and canvas element
 
     breadthfirst_layout = {
         name: 'breadthfirst',
@@ -50,11 +53,42 @@ export class RTreeRender {
     search_mbr = null;
     search_result_entries = [];
 
+    geometry_cache = [];
+
     constructor(rtree) {
 
+        super();
+
         this.rtree = rtree;
+        const that = this;
+        this.addTrigger("rtree:insert:finish", this.probeRtreeInsertFinish.bind(this));
+        this.addTrigger("rtree:search_overlap:finish", this.probeRtreeSearchOverlapFinish.bind(this));
+        this.addTrigger("rtree:delete:finish", this.probeRtreeDeleteFinish.bind(this));
 
     }
+
+    bind(rtree) {
+        //TODO
+    }
+
+    probeRtreeInsertFinish(tag, data) {
+        this.geometry_cache.push(data["geom"]);
+        this.render();
+    }
+
+    probeRtreeSearchOverlapFinish(tag, data) {
+        this.clearSeletedNodeAndEntry();
+        this.search_mbr = data["mbr"];
+        this.search_result_entries = data["result"];
+        this.render();
+    }
+
+    probeRtreeDeleteFinish(tag, data) {
+        this.geometry_cache.splice(this.geometry_cache.indexOf(data["geom"]), 1);
+        this.render();
+    }
+
+
 
     setDataExtent(ext) {
         this.data_ext = ext;
@@ -114,6 +148,7 @@ export class RTreeRender {
         return null;
     }
 
+
     clearSeletedNodeAndEntry() {
         this.selected_node = null;
         this.selected_entry = null;
@@ -122,12 +157,6 @@ export class RTreeRender {
     clearSearch() {
         this.search_mbr = null;
         this.search_result_entries = [];
-    }
-
-    setSearch(mbr, result) {
-        this.clearSeletedNodeAndEntry();
-        this.search_mbr = mbr;
-        this.search_result_entries = result;
     }
 
     render() {
@@ -170,7 +199,7 @@ export class RTreeRender {
                 this.data.elements.push(d);
 
                 //inner node to entry
-                d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
+                d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', name: "", source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
                 this.data.elements.push(d);
 
                 if (!e.isLeaf) {
@@ -183,7 +212,6 @@ export class RTreeRender {
 
         cy.nodes('[type = "node"]').style({
             'background-color': 'red',
-            'label': 'data(name)',
             'text-rotation': 'autorotate',
             'text-margin-y': -50
         });
@@ -303,6 +331,10 @@ export class RTreeRender {
         canvas.width = clientWidth;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (this.rtree.root === null || this.rtree.root.entries.length === 0) {
+            return;
+        }
 
         //search mbr
         if (this.search_mbr) {

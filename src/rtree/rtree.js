@@ -567,8 +567,6 @@ export class RTree {
      * @returns {[RTreeNode,RTreeNode]} return two nodes
     */
     splitNode(node) {
-
-
         const lnode = RTreeNode.buildEmptyNode();
         lnode.parent = node.parent;
         lnode.entry = node.entry;
@@ -580,7 +578,8 @@ export class RTree {
         rnode.isLeaf = node.isLeaf;
 
         // this._randomSplit(node, lnode, rnode);
-        this._quadtaticSplit(node, lnode, rnode);
+        // this._quadtaticSplit(node, lnode, rnode);
+        this._linearSplit(node, lnode, rnode);
 
         //assign the parent of entries' node to new node
         if (!lnode.isLeaf) {
@@ -639,19 +638,23 @@ export class RTree {
     }
 
     /**
-     * @param {RTreeNode} node the old node
-     * @param {RTreeNode} lnode the new left node
-     * @param {RTreeNode} rnode the new right node 
-     * @returns {void} 
+     * @typedef {(node)=>[number,number]} PickSeedsFuncType
+     * @typedef {(RTreeNode,RTreeNode,RTreeNode,MBR,MBR)=>[number,RTreeNode]} PickNextFuncType
+     * 
+     * @param {RTreeNode} node
+     * @param {RTreeNode} lnode
+     * @param {RTreeNode} rnode
+     * @param {PickSeedsFuncType} pickSeedsFunc    
+     * @param {PickNextFuncType} pickNextFunc 
     */
-    _quadtaticSplit(node, lnode, rnode) {
+    _splitFramework(node, lnode, rnode, pickSeedsFunc, pickNextFunc) {
         let tot = node.entries.length;
         let cnt = 0;
         let lcnt = 0;
         let rcnt = 0;
         let lmbr = null;
         let rmbr = null;
-        const [idx1, idx2] = this._quadtaticPeekSeeds(node);
+        const [idx1, idx2] = pickSeedsFunc(node);
         this._moveEntryToNode(node, lnode, idx1);
         cnt++;
         lcnt++;
@@ -671,7 +674,7 @@ export class RTree {
                 return;
             }
 
-            const [idx, target] = this._quadtaticPickNext(node, lnode, rnode, lmbr, rmbr);
+            const [idx, target] = pickNextFunc(node, lnode, rnode, lmbr, rmbr);
             this._moveEntryToNode(node, target, idx);
             cnt++;
             if (target === lnode) {
@@ -685,10 +688,39 @@ export class RTree {
     }
 
     /**
-     * @param {RTreeNode} node
-     * @returns {[number,number]}
+     * @param {RTreeNode} node the old node
+     * @param {RTreeNode} lnode the new left node
+     * @param {RTreeNode} rnode the new right node 
+     * @returns {void} 
+    */
+    _quadtaticSplit(node, lnode, rnode) {
+        return this._splitFramework(node, lnode, rnode, this._quadtaticPickSeeds.bind(this), this._pickNext_minExpandArea.bind(this));
+    }
+
+    /**
+     * @param {RTreeNode} node the old node
+     * @param {RTreeNode} lnode the new left node
+     * @param {RTreeNode} rnode the new right node 
+     * @returns {void} 
+    */
+    _linearSplit(node, lnode, rnode) {
+        return this._splitFramework(node, lnode, rnode, this._linearPickSeeds.bind(this), this._pickNext_minExpandArea.bind(this));
+    }
+
+    /**
+     * @param {RTreeNode} node the old node
+     * @param {RTreeNode} lnode the new left node
+     * @param {RTreeNode} rnode the new right node 
+     * @returns {void} 
+    */
+    _doubleSortSplit(node, lnode, rnode) {
+        //TODO
+    }
+
+    /**
+     * @type {PickSeedsFuncType}
      */
-    _quadtaticPeekSeeds(node) {
+    _quadtaticPickSeeds(node) {
         let maxd = -1;
         let idx1 = -1;
         let idx2 = -1;
@@ -709,15 +741,71 @@ export class RTree {
     }
 
     /**
-     *
-     * @param {RTreeNode} node
-     * @param {RTreeNode} lnode
-     * @param {RTreeNode} rnode
-     * @param {MBR} lmbr
-     * @param {MBR} rmbr
-     * @returns {[number, RTreeNode]}
+     * @type {PickSeedsFuncType}
      */
-    _quadtaticPickNext(node, lnode, rnode, lmbr, rmbr) {
+    _linearPickSeeds(node) {
+
+        let x_maxLow = -Infinity;
+        let x_minHigh = Infinity;
+        let x_minLow = Infinity;
+        let x_maxHigh = -Infinity;
+        let x_maxLow_eidx = -1;
+        let x_minHigh_eidx = -1;
+        let y_maxLow = -Infinity;
+        let y_minHigh = Infinity;
+        let y_minLow = Infinity;
+        let y_maxHigh = -Infinity;
+        let y_maxLow_eidx = -1;
+        let y_minHigh_eidx = -1;
+
+
+        for (let i = 0; i < node.entries.length; ++i) {
+            const e = node.entries[i];
+            if (e.mbr.xmin > x_maxLow) {
+                x_maxLow = e.mbr.xmin;
+                x_maxLow_eidx = i;
+            }
+            if (e.mbr.xmax < x_minHigh) {
+                x_minHigh = e.mbr.xmax;
+                x_minHigh_eidx = i;
+            }
+            if (e.mbr.xmin < x_minLow) {
+                x_maxLow = e.mbr.xmin;
+            }
+            if (e.mbr.xmax > x_maxHigh) {
+                x_maxHigh = e.mbr.xmax;
+            }
+            if (e.mbr.ymin > y_maxLow) {
+                y_maxLow = e.mbr.ymin;
+                y_maxLow_eidx = i;
+            }
+            if (e.mbr.ymax < y_minHigh) {
+                y_minHigh = e.mbr.ymax;
+                y_minHigh_eidx = i;
+            }
+            if (e.mbr.ymin < y_minLow) {
+                y_maxLow = e.mbr.ymin;
+            }
+            if (e.mbr.ymax > y_maxHigh) {
+                y_maxHigh = e.mbr.ymax;
+            }
+        }
+
+        const x_sep_norm = (x_maxLow - x_minHigh) / (x_maxHigh - x_minLow);
+        const y_sep_norm = (y_maxLow - y_minHigh) / (y_maxHigh - y_minLow);
+
+        if (x_sep_norm > y_sep_norm) {
+            return [x_minHigh_eidx, x_maxLow_eidx];
+        } else {
+            return [y_minHigh_eidx, y_maxLow_eidx];
+        }
+    }
+
+    /**
+     *
+     * @type {PickNextFuncType}
+     */
+    _pickNext_minExpandArea(node, lnode, rnode, lmbr, rmbr) {
         let maxd = -1;
         let idx = -1;
         let target = null;
@@ -748,26 +836,6 @@ export class RTree {
 
         }
         return [idx, target];
-    }
-
-    /**
-     * @param {RTreeNode} node the old node
-     * @param {RTreeNode} lnode the new left node
-     * @param {RTreeNode} rnode the new right node 
-     * @returns {void} 
-    */
-    _linearSplit(node, lnode, rnode) {
-        //TODO
-    }
-
-    /**
-     * @param {RTreeNode} node the old node
-     * @param {RTreeNode} lnode the new left node
-     * @param {RTreeNode} rnode the new right node 
-     * @returns {void} 
-    */
-    _doubleSortSplit(node, lnode, rnode) {
-        //TODO
     }
 
     /**

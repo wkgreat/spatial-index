@@ -1,3 +1,6 @@
+/**
+ *
+ */
 class Probe {
 
     /**
@@ -7,6 +10,9 @@ class Probe {
     /**@type {Map<string, ProbeCallback[]>}*/
     handlers = new Map();
 
+    /**
+     *
+     */
     constructor() {}
 
     /**

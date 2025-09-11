@@ -1,7 +1,10 @@
-import './index.css'
-import { Geometry, MBR, RTree } from './rtree/rtree';
+import './index.css';
+import { Geometry, RTree } from './rtree/rtree';
 import { RTreeRender } from './rtree/rtree_render';
 
+/**
+ *
+ */
 async function main() {
     const rtree = new RTree(2, 5);
     const render = new RTreeRender(rtree);

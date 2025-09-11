@@ -6,7 +6,11 @@
   "author": "ke.wang <ke.wang@transwarp.io>",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^9.35.0",
     "css-loader": "^7.1.2",
+    "eslint": "^9.35.0",
+    "eslint-plugin-jsdoc": "^55.4.0",
+    "globals": "^16.4.0",
     "html-webpack-plugin": "^5.6.4",
     "style-loader": "^4.0.0",
     "webpack": "^5.101.3",
@@ -16,7 +20,10 @@
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server --config webpack.config.js",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "lint:strict": "eslint src --max-warnings=0"
   },
   "dependencies": {
     "cytoscape": "^3.33.1"

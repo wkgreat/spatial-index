@@ -1,7 +1,10 @@
 import cytoscape from "cytoscape";
-import { RTree } from "./rtree";
 import Probe from "./probe";
+import { MBR, RTree, RTreeEntry, RTreeNode } from "./rtree";
 
+/**
+ *
+ */
 export class RTreeRender extends Probe {
 
     //TODO set graph element and canvas element
@@ -55,6 +58,10 @@ export class RTreeRender extends Probe {
 
     geometry_cache = [];
 
+    /**
+     * @constructor
+     * @param {RTree} rtree
+     */
     constructor(rtree) {
 
         super();
@@ -67,15 +74,29 @@ export class RTreeRender extends Probe {
 
     }
 
+    /**
+     *
+     * @param {RTree} rtree
+     */
     bind(rtree) {
         //TODO
     }
 
+    /**
+     *
+     * @param {string} tag
+     * @param {object} data
+     */
     probeRtreeInsertFinish(tag, data) {
         this.geometry_cache.push(data["geom"]);
         this.render();
     }
 
+    /**
+     *
+     * @param {string} tag
+     * @param {object} data
+     */
     probeRtreeSearchOverlapFinish(tag, data) {
         this.clearSeletedNodeAndEntry();
         this.search_mbr = data["mbr"];
@@ -83,6 +104,11 @@ export class RTreeRender extends Probe {
         this.render();
     }
 
+    /**
+     *
+     * @param {string} tag
+     * @param {object} data
+     */
     probeRtreeDeleteFinish(tag, data) {
         this.geometry_cache.splice(this.geometry_cache.indexOf(data["geom"]), 1);
         this.render();
@@ -90,11 +116,21 @@ export class RTreeRender extends Probe {
 
 
 
+    /**
+     *
+     * @param {[number,number,number,number]} ext
+     */
     setDataExtent(ext) {
         this.data_ext = ext;
         this.coordConvert = this.getCanvasCoordFunc(ext);
     }
 
+    /**
+     *
+     * @param {RTreeNode} node
+     * @param {number} id
+     * @returns {RTreeNode}
+     */
     searchNodeById(node, id) {
         if (node.id === id) {
             return node;
@@ -110,6 +146,11 @@ export class RTreeRender extends Probe {
         return null;
     }
 
+    /**
+     *
+     * @param {number} id
+     * @returns {RTreeEntry}
+     */
     searchEntryById(id) {
 
         const entries = [];
@@ -131,6 +172,11 @@ export class RTreeRender extends Probe {
 
     }
 
+    /**
+     *
+     * @param {RTreeEntry} entry
+     * @returns {RTreeNode}
+     */
     getNodeContainingEntry(entry) {
         const nodes = [];
         nodes.push(this.rtree.root);
@@ -149,21 +195,33 @@ export class RTreeRender extends Probe {
     }
 
 
+    /**
+     *
+     */
     clearSeletedNodeAndEntry() {
         this.selected_node = null;
         this.selected_entry = null;
     }
 
+    /**
+     *
+     */
     clearSearch() {
         this.search_mbr = null;
         this.search_result_entries = [];
     }
 
+    /**
+     *
+     */
     render() {
         this.graph_render();
         this.canvas_render();
     }
 
+    /**
+     *
+     */
     graph_render() {
 
         const nodes = [];
@@ -273,12 +331,16 @@ export class RTreeRender extends Probe {
 
     }
 
+    /**
+     *
+     * @param {[number,number,number,number]} data_ext
+     * @returns {(number,number)=>[number,number]}
+     */
     getCanvasCoordFunc(data_ext) {
 
         //TODO revert y coordinate.
 
         const canvas = document.getElementById("rtree-canvas");
-        const ctx = canvas.getContext("2d");
         const clientWidth = canvas.clientWidth;
         const clientHeight = canvas.clientHeight;
         canvas.height = clientHeight;
@@ -294,10 +356,19 @@ export class RTreeRender extends Probe {
         }
     }
 
+    /**
+     *
+     */
     canvas_render() {
 
         const that = this;
 
+        /**
+         *
+         * @param {CanvasRenderingContext2D} ctx
+         * @param {MBR} mbr
+         * @param {object} props
+         */
         function render_mbr(ctx, mbr, props) {
 
             const defaultProps = {

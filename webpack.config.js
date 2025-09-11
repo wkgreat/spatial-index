@@ -20,7 +20,7 @@ module.exports = {
             {
                 test: /\.css$/, // 处理 CSS 文件
                 use: ['style-loader', 'css-loader'],
-            },
+            }
         ],
     },
     plugins: [

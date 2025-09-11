@@ -1,6 +1,7 @@
 import cytoscape from "cytoscape";
 import Probe from "./probe";
 import { MBR, RTree, RTreeEntry, RTreeNode } from "./rtree";
+import { sleep } from "../utils/utils";
 
 /**
  *
@@ -9,10 +10,24 @@ export class RTreeRender extends Probe {
 
     //TODO set graph element and canvas element
 
-    breadthfirst_layout = {
+    layout_breadthfirst = {
         name: 'breadthfirst',
+        roots: null,
+        rankDir: 'TB',        // 从左到右
+        spacingFactor: 1.3,   // 增加节点间距
         nodeSpacing: 1000,
-        directed: true
+        directed: true,
+        fit: false,             // 缩放以适应容器,
+        avoidOverlap: true,
+        grid: false,
+        circle: false,
+        // nodeDimensionsIncludeLabels: true,
+        // animate: true,                      // 启用动画
+        // animationDuration: 800,             // 动画持续 800 毫秒
+    }
+
+    layout_cose = {
+        name: 'cose'
     }
 
     data = {
@@ -37,7 +52,6 @@ export class RTreeRender extends Probe {
                     'width': 2,
                     'line-color': '#ccc',
                     'curve-style': 'bezier',
-                    // 'label': 'data(name)',
                     'color': '#fff',
                     'target-arrow-color': '#999',
                     'target-arrow-shape': 'triangle'
@@ -45,11 +59,15 @@ export class RTreeRender extends Probe {
             }
         ],
 
-        layout: this.breadthfirst_layout
+        // layout: this.breadthfirst_layout
     };
 
     /**@type {RTree|null}*/
     rtree = null;
+
+    /**@type {cytoscape.Core}*/
+    cy = null;
+    layout = null;
 
     selected_node = null;
     selected_entry = null;
@@ -67,11 +85,104 @@ export class RTreeRender extends Probe {
 
         this.rtree = rtree;
         this.rtree.setProbe(this);
+        this.initGraph();
+        // this.testGraph();
         const that = this;
         this.addTrigger("rtree:insert:finish", this.probeRtreeInsertFinish.bind(this));
         this.addTrigger("rtree:search_overlap:finish", this.probeRtreeSearchOverlapFinish.bind(this));
         this.addTrigger("rtree:delete:finish", this.probeRtreeDeleteFinish.bind(this));
         this.addTrigger("rtree:clear:finish", this.probeRtreeClearFinish.bind(this));
+
+    }
+
+    initGraph() {
+
+        this.cy = cytoscape(this.data);
+
+        const that = this;
+
+        this.cy.on('tap', 'node', (evt) => {
+
+            let node = evt.target;
+
+            if (node.data("type") === 'node') {
+
+                const node_id = parseFloat(node.data("id").split("-")[1]);
+                this.selected_node = this.searchNodeById(this.rtree.root, node_id);
+                if (this.selected_node !== this.rtree.root) {
+                    this.selected_entry = this.selected_node.entry;
+                } else {
+                    this.selected_entry = null;
+                }
+                this.clearSearch();
+                that.render();
+
+            }
+
+            if (node.data("type") === 'entry') {
+
+                const entry_id = parseFloat(node.data("id").split("-")[1]);
+                this.selected_entry = this.searchEntryById(entry_id);
+                if (this.selected_entry.isLeaf) {
+                    this.selected_node = null;
+                    //TODO set selected geometry
+                } else {
+                    this.selected_node = this.selected_entry.node;
+                }
+                this.clearSearch();
+                that.render();
+
+            }
+
+        })
+    }
+
+
+    setGraphElementStyle() {
+        this.cy.nodes().style({
+        });
+        this.cy.edges().style({
+        })
+        this.cy.nodes('[type = "node"]').style({
+            'background-color': 'red',
+            'text-rotation': 'autorotate',
+            'text-margin-y': -50
+        });
+        this.cy.nodes('[isLeaf = "true"]').style({
+            'border-color': 'white',
+            'background-color': 'green',
+        });
+        this.cy.nodes('[isLeaf = "false"]').style({
+            'border-color': 'white',
+            'background-color': 'blue',
+        });
+        this.cy.nodes('[type = "entry"]').style({
+            'background-color': 'white',
+            'width': 10,
+            'height': 10,
+            'opacity': 0.5
+        });
+        this.cy.nodes('[classes = "aux"]').style({
+            'display': 'none'
+        });
+        this.cy.edges('[classes = "aux"]').style({
+            'display': 'none'
+        });
+        this.cy.nodes('[type = "geom"]').style({
+            'background-color': 'red',
+            'opacity': 0.4,
+            'width': 8,
+            'height': 8,
+        })
+    }
+
+    refreshGraph() {
+
+        const roots = this.rtree.isEmpty() ? "" : `#inner-node-${this.rtree.root.id}`
+        this.layout_breadthfirst.roots = roots;
+        this.cy.layout(this.layout_breadthfirst).run();
+        this.setGraphElementStyle();
+        // this.cy.fit();
 
     }
 
@@ -226,117 +337,86 @@ export class RTreeRender extends Probe {
         this.canvas_render();
     }
 
+    addNodeToGraph(node) {
+        if (node == null) {
+            return;
+        }
+
+        //node
+        let d = { data: { id: `node-${node.id}`, type: "node", isLeaf: node.isLeaf ? "true" : "false", name: `${node.id}(${node.entries.length})` } };
+        this.cy.add({ group: 'nodes', data: d.data });
+
+        d = { data: { id: `inner-node-${node.id}`, parent: `node-${node.id}`, type: "inner-node", isLeaf: node.isLeaf ? "true" : "false", name: `xxx`, classes: 'aux' } };
+        this.cy.add({ group: 'nodes', data: d.data });
+
+        if (node.parent !== null) {
+
+            //aux edge
+            d = { data: { id: `inner-edge-${node.parent.id}-${node.id}`, type: "inner-edge", name: `xxx`, source: `inner-node-${node.parent.id}`, target: `inner-node-${node.id}`, classes: 'aux' } };
+            this.cy.add({ group: 'edges', data: d.data });
+
+            //entry to node
+            d = { data: { id: `edge-${node.entry.id}-${node.id}`, type: "edge", name: `${node.parent.id}->${node.id}`, source: `entry-${node.entry.id}`, target: `node-${node.id}` } };
+            this.cy.add({ group: 'edges', data: d.data });
+        }
+        for (let e of node.entries) {
+
+            //entry
+            d = { data: { id: `entry-${e.id}`, type: 'entry', parent: `node-${node.id}`, isLeaf: e.isLeaf ? "true" : "false", name: `${e.id}` } };
+            this.cy.add({ group: 'nodes', data: d.data });
+
+            //inner node to entry
+            d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', name: "", source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
+            this.cy.add({ group: 'edges', data: d.data });
+
+            if (e.isLeaf) {
+                const g = e.geom;
+                //geom node
+                d = { data: { id: `geom-${g.id}`, type: 'geom', parent: `geom-${g.id}`, name: `${g.id}` } };
+                this.cy.add({ group: 'nodes', data: d.data });
+
+                //entry to geom
+                d = { data: { id: `edge-${e.id}-geom-${g.id}`, type: 'edge', name: "", source: `entry-${e.id}`, target: `geom-${g.id}` } };
+                this.cy.add({ group: 'edges', data: d.data });
+            }
+
+        }
+
+    }
+
     /**
      * @returns {void}
      */
     graph_render() {
 
         const nodes = [];
-        this.data.elements = [];
+        // this.data.elements = [];
+        this.cy.elements().remove();
+
+        this.refreshGraph();
 
         if (!this.rtree.isEmpty()) {
+
             nodes.push(this.rtree.root);
 
             while (nodes.length > 0) {
 
                 const node = nodes.shift();
 
-                //node
-                let d = { data: { id: `node-${node.id}`, type: "node", isLeaf: node.isLeaf ? "true" : "false", name: `${node.id}(${node.entries.length})` } };
-                this.data.elements.push(d);
+                this.addNodeToGraph(node);
 
-                d = { data: { id: `inner-node-${node.id}`, parent: `node-${node.id}`, type: "inner-node", isLeaf: node.isLeaf ? "true" : "false", name: `xxx`, classes: 'aux' } };
-                this.data.elements.push(d);
-
-                if (node.parent !== null) {
-
-                    //aux edge
-                    d = { data: { id: `inner-edge-${node.parent.id}-${node.id}`, type: "inner-edge", name: `xxx`, source: `inner-node-${node.parent.id}`, target: `inner-node-${node.id}`, classes: 'aux' } };
-                    this.data.elements.push(d);
-
-                    //entry to node
-                    d = { data: { id: `edge-${node.entry.id}-${node.id}`, type: "edge", name: `${node.parent.id}->${node.id}`, source: `entry-${node.entry.id}`, target: `node-${node.id}` } };
-                    this.data.elements.push(d);
-                }
                 for (let e of node.entries) {
-
-                    //entry
-                    d = { data: { id: `entry-${e.id}`, type: 'entry', parent: `node-${node.id}`, isLeaf: e.isLeaf ? "true" : "false", name: `${e.id}` } };
-                    this.data.elements.push(d);
-
-                    //inner node to entry
-                    d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', name: "", source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
-                    this.data.elements.push(d);
 
                     if (!e.isLeaf) {
                         nodes.push(e.node);
                     }
                 }
+
+                this.refreshGraph();
             }
         }
 
-        const cy = cytoscape(this.data);
-
-        cy.nodes('[type = "node"]').style({
-            'background-color': 'red',
-            'text-rotation': 'autorotate',
-            'text-margin-y': -50
-        });
-        cy.nodes('[isLeaf = "true"]').style({
-            'border-color': 'white',
-            'background-color': 'green',
-        });
-        cy.nodes('[isLeaf = "false"]').style({
-            'border-color': 'white',
-            'background-color': 'blue',
-        });
-        cy.nodes('[type = "entry"]').style({
-            'background-color': 'white',
-            'opacity': 0.5
-        });
-        cy.nodes('[classes = "aux"]').style({
-            'display': 'none'
-        });
-        cy.edges('[classes = "aux"]').style({
-            'display': 'none'
-        });
-
-        const that = this;
-
-        cy.on('tap', 'node', (evt) => {
-
-            let node = evt.target;
-
-            if (node.data("type") === 'node') {
-
-                const node_id = parseFloat(node.data("id").split("-")[1]);
-                this.selected_node = this.searchNodeById(this.rtree.root, node_id);
-                if (this.selected_node !== this.rtree.root) {
-                    this.selected_entry = this.selected_node.entry;
-                } else {
-                    this.selected_entry = null;
-                }
-                this.clearSearch();
-                that.render();
-
-            }
-
-            if (node.data("type") === 'entry') {
-
-                const entry_id = parseFloat(node.data("id").split("-")[1]);
-                this.selected_entry = this.searchEntryById(entry_id);
-                if (this.selected_entry.isLeaf) {
-                    this.selected_node = null;
-                    //TODO set selected geometry
-                } else {
-                    this.selected_node = this.selected_entry.node;
-                }
-                this.clearSearch();
-                that.render();
-
-            }
-
-        })
+        this.refreshGraph();
 
     }
 

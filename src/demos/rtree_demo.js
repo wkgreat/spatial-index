@@ -140,7 +140,7 @@ export function rtree_demo_main() {
         const v = parseFloat(evt.target.value);
         if (v < 2 || v > M / 2) {
             evt.target.value = `${m}`;
-            alert(`m should small or equal to M`);
+            alert(`m should small or equal to M / 2`);
         } else {
             m = v;
             rtree_demo.setMinMaxNumberOfEntries(m, M);
@@ -153,7 +153,7 @@ export function rtree_demo_main() {
         const v = parseFloat(evt.target.value);
         if (m > v / 2) {
             evt.target.value = `${M}`;
-            alert(`m should small or equal to M`);
+            alert(`m should small or equal to M / 2`);
         } else {
             M = v;
             rtree_demo.setMinMaxNumberOfEntries(m, M);

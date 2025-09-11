@@ -179,7 +179,8 @@ export class Geometry {
 
 /**
  * @class RTree
- * 
+ * @todo add write lock
+ * @todo replace geometry to record
  * RTree class
 */
 export class RTree {
@@ -188,7 +189,14 @@ export class RTree {
     root = null;
 
     /**@type {Probe}*/
-    probe = null;
+    _probe = null;
+
+    /**
+     * @param {Probe} probe 
+    */
+    setProbe(probe) {
+        this._probe = probe;
+    }
 
     /**
      * @constructor 
@@ -205,19 +213,10 @@ export class RTree {
      * @param {object} data
      */
     __probe__(tag, data) {
-        if (this.probe) {
-            this.probe.probe(tag, data);
+        if (this._probe) {
+            this._probe.probe(tag, data);
         }
     }
-
-    /**
-     * @static
-     * @param {Geometry[]} geoms 
-     * @returns {RTree}
-    */
-    static buildFromGeoms(geoms) {
-        //TODO
-    };
 
     /**
      * @returns {number} the level of leaf node
@@ -256,7 +255,7 @@ export class RTree {
      * @param {RTreeEntry} entry
      * @param {number} level
      */
-    insertEntry(entry, level) {
+    _insertEntry(entry, level) {
 
         let pnode = this._chooseNodeEntryIn(entry, level);
 
@@ -266,14 +265,14 @@ export class RTree {
 
         if (pnode.entries.length > this.M) { // leaf is full, split
 
-            [lnode, rnode] = this.splitNode(pnode);
+            [lnode, rnode] = this._splitNode(pnode);
 
         } else {
             lnode = pnode;
             rnode = null;
         }
 
-        this.adjustTree(pnode, lnode, rnode);
+        this._adjustTree(pnode, lnode, rnode);
     }
 
     /**
@@ -322,6 +321,14 @@ export class RTree {
     }
 
     /**
+     * @param {Geometry[]} geoms 
+     * @returns {void}
+    */
+    insertGeometries(geoms) {
+        geoms.forEach(g => this.insert(g));
+    }
+
+    /**
      * @param {Geometry} geom 
      * @returns {void}
     */
@@ -336,7 +343,7 @@ export class RTree {
 
         let entry = RTreeEntry.buildFromGeom(geom);
 
-        let leaf = this.chooseLeaf(entry);
+        let leaf = this._chooseLeaf(entry);
 
         leaf.addEntry(entry); // add entry to leaf
 
@@ -344,14 +351,14 @@ export class RTree {
 
         if (leaf.entries.length > this.M) { // leaf is full, split
 
-            [lnode, rnode] = this.splitNode(leaf);
+            [lnode, rnode] = this._splitNode(leaf);
 
         } else {
             lnode = leaf;
             rnode = null;
         }
 
-        this.adjustTree(leaf, lnode, rnode);
+        this._adjustTree(leaf, lnode, rnode);
 
         this.__probe__("rtree:insert:finish", { target: this, geom: geom });
 
@@ -361,7 +368,7 @@ export class RTree {
      * @param {RTreeEntry} entry
      * @returns {RTreeNode} leaf node 
     */
-    chooseLeaf(entry) {
+    _chooseLeaf(entry) {
 
         if (this.root === null) {
             this.root = RTreeNode.buildRoot();
@@ -405,7 +412,7 @@ export class RTree {
      * @param {RTreeNode} node1
      * @param {RTreeNode|null} node2
     */
-    adjustTree(rawnode, node1, node2) {
+    _adjustTree(rawnode, node1, node2) {
 
         let R = rawnode;
         let P = R.parent;
@@ -424,7 +431,7 @@ export class RTree {
                 if (N2.parent.entries.length > this.M) {
                     R = R.parent;
                     P = R.parent;
-                    [N1, N2] = this.splitNode(N2.parent);
+                    [N1, N2] = this._splitNode(N2.parent);
                 } else {
                     R = R.parent;
                     P = R.parent;
@@ -471,13 +478,13 @@ export class RTree {
 
         this.__probe__("rtree:delete:start", { target: this, geom: geom });
 
-        const [leaf, entry] = this.findLeaf(geom);
+        const [leaf, entry] = this._findLeaf(geom);
         if (leaf === null || entry === null) {
             return;
         }
 
         this._removeEntryFromNode(leaf, entry);
-        this.condenseTree(leaf);
+        this._condenseTree(leaf);
 
         if (this.root.entries.length === 1 && !this.root.isLeaf) {
             const newRoot = this.root.entries[0].node;
@@ -493,7 +500,7 @@ export class RTree {
      * @param {Geometry} geom
      * @returns {[RTreeNode,RTreeEntry]} 
     */
-    findLeaf(geom) {
+    _findLeaf(geom) {
 
         const nodes = []; //stack of nodes
         nodes.push(this.root);
@@ -530,7 +537,7 @@ export class RTree {
      * @param {RTreeNode} node the node need condense 
      * @returns {void}
     */
-    condenseTree(node) {
+    _condenseTree(node) {
 
         const q = [];
         let n = node;
@@ -556,7 +563,7 @@ export class RTree {
         for (let n of q) {
             const level = this._getEntryInsertLevelByNode(n);
             for (let e of n.entries) {
-                this.insertEntry(e, level);
+                this._insertEntry(e, level);
             }
         }
     }
@@ -566,7 +573,7 @@ export class RTree {
      * @param {RTreeNode} node 
      * @returns {[RTreeNode,RTreeNode]} return two nodes
     */
-    splitNode(node) {
+    _splitNode(node) {
         const lnode = RTreeNode.buildEmptyNode();
         lnode.parent = node.parent;
         lnode.entry = node.entry;
@@ -882,6 +889,22 @@ export class RTree {
         });
         this.__probe__("rtree:search_overlap:finish", { target: this, mbr: mbr, result: result });
         return result;
+    }
+
+    /**
+     * @returns {void}
+    */
+    clear() {
+        this.__probe__("rtree:clear:start", { target: this });
+        this.root = null;
+        this.__probe__("rtree:clear:finish", { target: this });
+    }
+
+    /**
+     * @returns {boolean}
+    */
+    isEmpty() {
+        return this.root === null || this.root.entries.length === 0;
     }
 
 };

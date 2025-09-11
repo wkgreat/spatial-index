@@ -55,7 +55,6 @@ export class RTreeRender extends Probe {
     selected_entry = null;
     search_mbr = null;
     search_result_entries = [];
-
     geometry_cache = [];
 
     /**
@@ -67,19 +66,13 @@ export class RTreeRender extends Probe {
         super();
 
         this.rtree = rtree;
+        this.rtree.setProbe(this);
         const that = this;
         this.addTrigger("rtree:insert:finish", this.probeRtreeInsertFinish.bind(this));
         this.addTrigger("rtree:search_overlap:finish", this.probeRtreeSearchOverlapFinish.bind(this));
         this.addTrigger("rtree:delete:finish", this.probeRtreeDeleteFinish.bind(this));
+        this.addTrigger("rtree:clear:finish", this.probeRtreeClearFinish.bind(this));
 
-    }
-
-    /**
-     *
-     * @param {RTree} rtree
-     */
-    bind(rtree) {
-        //TODO
     }
 
     /**
@@ -114,7 +107,21 @@ export class RTreeRender extends Probe {
         this.render();
     }
 
+    /**
+ *
+ * @param {string} tag
+ * @param {object} data
+ */
+    probeRtreeClearFinish(tag, data) {
 
+        this.geometry_cache = []
+        this.selected_node = null;
+        this.selected_entry = null;
+        this.search_mbr = null;
+        this.search_result_entries = [];
+        this.render();
+
+    }
 
     /**
      *
@@ -204,7 +211,7 @@ export class RTreeRender extends Probe {
     }
 
     /**
-     *
+     * @returns {void}
      */
     clearSearch() {
         this.search_mbr = null;
@@ -212,7 +219,7 @@ export class RTreeRender extends Probe {
     }
 
     /**
-     *
+     * @returns {void}
      */
     render() {
         this.graph_render();
@@ -220,48 +227,50 @@ export class RTreeRender extends Probe {
     }
 
     /**
-     *
+     * @returns {void}
      */
     graph_render() {
 
         const nodes = [];
         this.data.elements = [];
 
-        nodes.push(this.rtree.root);
+        if (!this.rtree.isEmpty()) {
+            nodes.push(this.rtree.root);
 
-        while (nodes.length > 0) {
+            while (nodes.length > 0) {
 
-            const node = nodes.shift();
+                const node = nodes.shift();
 
-            //node
-            let d = { data: { id: `node-${node.id}`, type: "node", isLeaf: node.isLeaf ? "true" : "false", name: `${node.id}(${node.entries.length})` } };
-            this.data.elements.push(d);
-
-            d = { data: { id: `inner-node-${node.id}`, parent: `node-${node.id}`, type: "inner-node", isLeaf: node.isLeaf ? "true" : "false", name: `xxx`, classes: 'aux' } };
-            this.data.elements.push(d);
-
-            if (node.parent !== null) {
-
-                //aux edge
-                d = { data: { id: `inner-edge-${node.parent.id}-${node.id}`, type: "inner-edge", name: `xxx`, source: `inner-node-${node.parent.id}`, target: `inner-node-${node.id}`, classes: 'aux' } };
+                //node
+                let d = { data: { id: `node-${node.id}`, type: "node", isLeaf: node.isLeaf ? "true" : "false", name: `${node.id}(${node.entries.length})` } };
                 this.data.elements.push(d);
 
-                //entry to node
-                d = { data: { id: `edge-${node.entry.id}-${node.id}`, type: "edge", name: `${node.parent.id}->${node.id}`, source: `entry-${node.entry.id}`, target: `node-${node.id}` } };
-                this.data.elements.push(d);
-            }
-            for (let e of node.entries) {
-
-                //entry
-                d = { data: { id: `entry-${e.id}`, type: 'entry', parent: `node-${node.id}`, isLeaf: e.isLeaf ? "true" : "false", name: `${e.id}` } };
+                d = { data: { id: `inner-node-${node.id}`, parent: `node-${node.id}`, type: "inner-node", isLeaf: node.isLeaf ? "true" : "false", name: `xxx`, classes: 'aux' } };
                 this.data.elements.push(d);
 
-                //inner node to entry
-                d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', name: "", source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
-                this.data.elements.push(d);
+                if (node.parent !== null) {
 
-                if (!e.isLeaf) {
-                    nodes.push(e.node);
+                    //aux edge
+                    d = { data: { id: `inner-edge-${node.parent.id}-${node.id}`, type: "inner-edge", name: `xxx`, source: `inner-node-${node.parent.id}`, target: `inner-node-${node.id}`, classes: 'aux' } };
+                    this.data.elements.push(d);
+
+                    //entry to node
+                    d = { data: { id: `edge-${node.entry.id}-${node.id}`, type: "edge", name: `${node.parent.id}->${node.id}`, source: `entry-${node.entry.id}`, target: `node-${node.id}` } };
+                    this.data.elements.push(d);
+                }
+                for (let e of node.entries) {
+
+                    //entry
+                    d = { data: { id: `entry-${e.id}`, type: 'entry', parent: `node-${node.id}`, isLeaf: e.isLeaf ? "true" : "false", name: `${e.id}` } };
+                    this.data.elements.push(d);
+
+                    //inner node to entry
+                    d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', name: "", source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
+                    this.data.elements.push(d);
+
+                    if (!e.isLeaf) {
+                        nodes.push(e.node);
+                    }
                 }
             }
         }
@@ -403,7 +412,7 @@ export class RTreeRender extends Probe {
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (this.rtree.root === null || this.rtree.root.entries.length === 0) {
+        if (this.rtree.isEmpty()) {
             return;
         }
 

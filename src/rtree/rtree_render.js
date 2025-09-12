@@ -4,6 +4,81 @@ import { MBR, RTree, RTreeEntry, RTreeNode } from "./rtree";
 import { sleep } from "../utils/utils";
 
 /**
+ * @class RTreeStateMachine
+ * @typedef {'NULL'|'SELECT'|'INSERT'|'SEARCH'|'DELETE'} RTreeState
+*/
+class RTreeStateMachine {
+
+
+    /**@type {RTreeState}*/
+    state = "NULL";
+
+    selectEntry = null;
+    selectNode = null;
+    selectRecord = null;
+
+    insertGeom = null;
+    insertResultEntry = null;
+
+    searchCondition = null;
+    searchPath = null;
+    searchResults = null;
+
+    constructor() {}
+
+    setInsert(insertGeom, resultEntry) {
+        this.state = 'INSERT';
+        this.insertGeom = insertGeom;
+        this.insertResultEntry = resultEntry;
+    }
+
+    setSelect(selectEntry, selectNode, selectRecord) {
+        this.state = 'SELECT';
+        this.selectEntry = selectEntry;
+        this.selectNode = selectNode;
+        this.selectRecord = selectRecord;
+    }
+
+    startSearch(searchCondition) {
+        this.state = 'SEARCH';
+        this.searchCondition = searchCondition;
+        this.searchPath = [];
+    }
+
+    addSearchPath(node, entry) {
+
+        if (entry) {
+            this.searchPath.push(entry);
+        } else if (node) {
+            this.searchPath.push(node);
+        }
+
+    }
+
+    finishSearch(searchResults) {
+        this.searchResults = searchResults;
+    }
+
+    setDelete() {
+        this.state = 'DELETE';
+    }
+
+    clear() {
+        this.state = "NULL";
+
+        this.selectEntry = null;
+        this.selectNode = null;
+
+        this.insertParam = null;
+        this.insertResultEntry = null;
+
+        this.searchCondition = null;
+        this.searchResults = null;
+    }
+
+}
+
+/**
  *
  */
 export class RTreeRender extends Probe {
@@ -37,29 +112,14 @@ export class RTreeRender extends Probe {
             {
                 selector: 'node',
                 style: {
-                    'shape': 'rectangle',
-                    'padding': '10px',
-                    'background-color': '#0074D9',
                     'label': 'data(name)',
-                    'color': '#fff',
-                    'text-valign': 'center',
-                    'text-halign': 'center'
                 }
             },
             {
                 selector: 'edge',
-                style: {
-                    'width': 2,
-                    'line-color': '#ccc',
-                    'curve-style': 'bezier',
-                    'color': '#fff',
-                    'target-arrow-color': '#999',
-                    'target-arrow-shape': 'triangle'
-                }
+                style: {}
             }
         ],
-
-        // layout: this.breadthfirst_layout
     };
 
     /**@type {RTree|null}*/
@@ -73,7 +133,8 @@ export class RTreeRender extends Probe {
     selected_entry = null;
     search_mbr = null;
     search_result_entries = [];
-    geometry_cache = [];
+
+    stateMachine = new RTreeStateMachine();
 
     /**
      * @constructor
@@ -86,12 +147,14 @@ export class RTreeRender extends Probe {
         this.rtree = rtree;
         this.rtree.setProbe(this);
         this.initGraph();
-        // this.testGraph();
         const that = this;
         this.addTrigger("rtree:insert:finish", this.probeRtreeInsertFinish.bind(this));
+        this.addTrigger("rtree:search_overlap:start", this.probeRtreeSearchOverlapStart.bind(this));
+        this.addTrigger("rtree:search:path", this.probeRtreeSearchPath.bind(this));
         this.addTrigger("rtree:search_overlap:finish", this.probeRtreeSearchOverlapFinish.bind(this));
         this.addTrigger("rtree:delete:finish", this.probeRtreeDeleteFinish.bind(this));
         this.addTrigger("rtree:clear:finish", this.probeRtreeClearFinish.bind(this));
+
 
     }
 
@@ -108,40 +171,66 @@ export class RTreeRender extends Probe {
             if (node.data("type") === 'node') {
 
                 const node_id = parseFloat(node.data("id").split("-")[1]);
-                this.selected_node = this.searchNodeById(this.rtree.root, node_id);
-                if (this.selected_node !== this.rtree.root) {
-                    this.selected_entry = this.selected_node.entry;
-                } else {
-                    this.selected_entry = null;
-                }
-                this.clearSearch();
-                that.render();
 
+                const selectNode = this.searchNodeById(this.rtree.root, node_id);
+                let selectEntry = null;
+                if (selectNode === this.rtree.root) {
+                    selectEntry = null;
+                } else {
+                    selectEntry = selectNode.entry;
+                }
+                this.stateMachine.setSelect(selectEntry, selectNode, null);
+
+                this.refreshGraphStyle();
+                this.canvas_render();
             }
 
             if (node.data("type") === 'entry') {
 
                 const entry_id = parseFloat(node.data("id").split("-")[1]);
-                this.selected_entry = this.searchEntryById(entry_id);
-                if (this.selected_entry.isLeaf) {
-                    this.selected_node = null;
-                    //TODO set selected geometry
-                } else {
-                    this.selected_node = this.selected_entry.node;
-                }
-                this.clearSearch();
-                that.render();
 
+                const selectEntry = this.searchEntryById(entry_id);
+                let selectNode = null;
+                let selectRecord = null;
+                if (selectEntry.isLeaf) {
+                    selectNode = null;
+                    selectRecord = selectEntry.geom;
+                } else {
+                    selectNode = selectEntry.node;
+                    selectRecord = null;
+                }
+                this.stateMachine.setSelect(selectEntry, selectNode, selectRecord);
+
+                this.refreshGraphStyle();
+                this.canvas_render();
             }
 
         })
     }
 
+    refreshGraphStyle() {
+        this.refreshGraphDefaultStyle();
+        this.refreshGraphStateStyle();
+    }
 
-    setGraphElementStyle() {
+    refreshGraphDefaultStyle() {
         this.cy.nodes().style({
+            'shape': 'rectangle',
+            'padding': '10px',
+            'background-color': 'blue',
+            'color': '#fff',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'border-color': 'white',
+            'border-width': '1px',
         });
         this.cy.edges().style({
+            'line-color': 'white',
+            'width': 2,
+            'line-color': 'white',
+            'curve-style': 'bezier',
+            'target-arrow-color': 'white',
+            'target-arrow-shape': 'triangle'
         })
         this.cy.nodes('[type = "node"]').style({
             'background-color': 'red',
@@ -157,10 +246,12 @@ export class RTreeRender extends Probe {
             'background-color': 'blue',
         });
         this.cy.nodes('[type = "entry"]').style({
+            'border-width': '1px',
+            'border-color': 'white',
             'background-color': 'white',
             'width': 10,
             'height': 10,
-            'opacity': 0.5
+            'background-opacity': 0.5
         });
         this.cy.nodes('[classes = "aux"]').style({
             'display': 'none'
@@ -170,10 +261,123 @@ export class RTreeRender extends Probe {
         });
         this.cy.nodes('[type = "geom"]').style({
             'background-color': 'red',
-            'opacity': 0.4,
+            'background-opacity': 0.4,
             'width': 8,
             'height': 8,
         })
+    }
+
+    refreshGraphStateStyle() {
+
+        if (this.stateMachine.state === 'NULL') {
+            // do nothing
+        }
+        else if (this.stateMachine.state === 'SELECT') {
+
+            const nodeId = this.stateMachine.selectNode ? this.stateMachine.selectNode.id : -1;
+            const entryId = this.stateMachine.selectEntry ? this.stateMachine.selectEntry.id : -1;
+            const recordId = this.stateMachine.selectRecord ? this.stateMachine.selectRecord.id : -1;
+
+            const nodeGraphId = nodeId >= 0 ? `#node-${this.stateMachine.selectNode.id}` : null;
+            const entryGraphId = entryId >= 0 ? `#entry-${this.stateMachine.selectEntry.id}` : null;
+            const recordGraphId = recordId >= 0 ? `#geom-${this.stateMachine.selectRecord.id}` : null;
+
+            if (nodeGraphId) {
+                const nodeElement = this.cy.$(nodeGraphId).first();
+                nodeElement.style({
+                    // 'border-opacity': 1,
+                    'border-width': '4px',
+                    'border-color': 'red'
+                });
+            }
+
+            if (entryGraphId) {
+                const entryElement = this.cy.$(entryGraphId).first();
+                entryElement.style({
+                    // 'border-opacity': 1,
+                    'border-width': '4px',
+                    'border-color': 'red'
+                });
+            }
+
+            if (recordGraphId) {
+                const recordElement = this.cy.$(recordGraphId).first();
+                recordElement.style({
+                    // 'border-opacity': 1,
+                    'border-width': '4px',
+                    'border-color': 'red'
+                });
+            }
+
+            if (nodeId >= 0 && entryId >= 0) {
+                const edgeGraphId = `#edge-${entryId}-${nodeId}`
+                const edgeElement = this.cy.$(edgeGraphId).first();
+                edgeElement.style({
+                    'line-color': 'red',
+                    'width': '4px',
+                    'target-arrow-color': 'red',
+                });
+            }
+
+            if (entryId >= 0 && recordId >= 0) {
+                const edgeGraphId = `#edge-${entryId}-geom-${recordId}`
+                const edgeElement = this.cy.$(edgeGraphId).first();
+                edgeElement.style({
+                    'line-color': 'red',
+                    'width': '4px',
+                    'target-arrow-color': 'red'
+                });
+            }
+        }
+        else if (this.stateMachine.state === 'INSERT') {
+            //TODO
+        }
+        else if (this.stateMachine.state === 'SEARCH') {
+
+            for (let elem of this.stateMachine.searchPath) {
+
+                if (elem instanceof RTreeNode) {
+                    const elemId = `#node-${elem.id}`;
+                    const graphElem = this.cy.$(elemId).first();
+                    graphElem.style({
+                        'border-width': '4px',
+                        'border-color': 'red'
+                    });
+                }
+                else if (elem instanceof RTreeEntry) {
+                    const elemId = `#entry-${elem.id}`;
+                    const graphElem = this.cy.$(elemId).first();
+                    graphElem.style({
+                        'border-width': '4px',
+                        'border-color': 'red'
+                    });
+                    if (elem.isLeaf) {
+                        const recordId = elem.geom.id;
+                        const recordGraphId = `#geom-${recordId}`;
+                        const recordGraphElem = this.cy.$(recordGraphId).first();
+                        recordGraphElem.style({
+                            'border-width': '4px',
+                            'border-color': 'red'
+                        });
+                        const edgeId = `#edge-${elem.id}-geom-${recordId}`
+                        const edge = this.cy.$(edgeId).first();
+                        edge.style({
+                            'line-color': 'red',
+                            'width': '4px',
+                            'target-arrow-color': 'red'
+                        });
+                    } else {
+                        const edgeId = `#edge-${elem.id}-${elem.node.id}`;
+                        const edge = this.cy.$(edgeId).first();
+                        edge.style({
+                            'line-color': 'red',
+                            'width': '4px',
+                            'target-arrow-color': 'red'
+                        });
+                    }
+                }
+            }
+        }
     }
 
     refreshGraph() {
@@ -181,8 +385,7 @@ export class RTreeRender extends Probe {
         const roots = this.rtree.isEmpty() ? "" : `#inner-node-${this.rtree.root.id}`
         this.layout_breadthfirst.roots = roots;
         this.cy.layout(this.layout_breadthfirst).run();
-        this.setGraphElementStyle();
-        // this.cy.fit();
+        this.refreshGraphStyle();
 
     }
 
@@ -192,8 +395,12 @@ export class RTreeRender extends Probe {
      * @param {object} data
      */
     probeRtreeInsertFinish(tag, data) {
-        this.geometry_cache.push(data["geom"]);
+        this.stateMachine.setInsert(data["geom"], data["entry"]);
         this.render();
+    }
+
+    probeRtreeSearchOverlapStart(tag, data) {
+        this.stateMachine.startSearch(data["mbr"]);
     }
 
     /**
@@ -202,10 +409,14 @@ export class RTreeRender extends Probe {
      * @param {object} data
      */
     probeRtreeSearchOverlapFinish(tag, data) {
-        this.clearSeletedNodeAndEntry();
-        this.search_mbr = data["mbr"];
-        this.search_result_entries = data["result"];
-        this.render();
+        this.stateMachine.finishSearch(data["result"]);
+        this.refreshGraphStyle();
+    }
+
+    probeRtreeSearchPath(tag, data) {
+        const node = data["node"]
+        const entry = data["entry"];
+        this.stateMachine.addSearchPath(node, entry);
     }
 
     /**
@@ -214,7 +425,7 @@ export class RTreeRender extends Probe {
      * @param {object} data
      */
     probeRtreeDeleteFinish(tag, data) {
-        this.geometry_cache.splice(this.geometry_cache.indexOf(data["geom"]), 1);
+        this.stateMachine.setDelete();
         this.render();
     }
 
@@ -225,7 +436,6 @@ export class RTreeRender extends Probe {
  */
     probeRtreeClearFinish(tag, data) {
 
-        this.geometry_cache = []
         this.selected_node = null;
         this.selected_entry = null;
         this.search_mbr = null;
@@ -311,7 +521,6 @@ export class RTreeRender extends Probe {
         }
         return null;
     }
-
 
     /**
      *
@@ -417,6 +626,7 @@ export class RTreeRender extends Probe {
         }
 
         this.refreshGraph();
+        this.refreshGraphStateStyle();
 
     }
 
@@ -496,12 +706,14 @@ export class RTreeRender extends Probe {
             return;
         }
 
-        //search mbr
-        if (this.search_mbr) {
-            render_mbr(ctx, this.search_mbr, {
-                lineWidth: 5,
-                color: 'blue'
-            });
+        if (this.stateMachine.state === 'SEARCH') {
+            if (this.stateMachine.searchCondition) {
+                render_mbr(ctx, this.stateMachine.searchCondition, {
+                    lineWidth: 5,
+                    color: 'blue'
+                });
+            }
+
         }
 
         // root
@@ -514,7 +726,7 @@ export class RTreeRender extends Probe {
             color: '#d3d3d3',
             linedash: [5, 3]
         }
-        if (this.rtree.root === this.selected_node) {
+        if (this.stateMachine.state === 'SELECT' && this.rtree.root === this.stateMachine.selectNode) {
             props.color = 'red';
             props.lineWidth = 5;
         }
@@ -535,16 +747,23 @@ export class RTreeRender extends Probe {
                 linedash: [5, 3]
             }
 
-            if (this.selected_entry === e) { // the selected entry or the entry of corresponding selected node
-                props.color = 'red';
-                props.lineWidth = 5;
-            } else if (this.selected_node === n) { // the child node of selected node
-                props.color = 'green';
-                props.lineWidth = 2;
-            } else if (this.search_result_entries.includes(e)) {
-                props.color = 'red';
-                props.lineWidth = 2;
+            if (this.stateMachine.state === 'SELECT') {
+                if (this.stateMachine.selectEntry === e) { // the selected entry or the entry of corresponding selected node
+                    props.color = 'red';
+                    props.lineWidth = 5;
+                } else if (this.stateMachine.selectNode === n) { // the child node of selected node
+                    props.color = 'green';
+                    props.lineWidth = 2;
+                }
             }
+
+            if (this.stateMachine.state === 'SEARCH') {
+                if (this.stateMachine.searchResults.includes(e)) {
+                    props.color = 'red';
+                    props.lineWidth = 2;
+                }
+            }
+
             if (e.isLeaf) {
                 props.linedash = [];
             }

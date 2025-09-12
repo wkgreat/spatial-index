@@ -1,13 +1,14 @@
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
 
 module.exports = {
-    entry: './src/index.js', // 入口文件
+    entry: './src/index.js',
     output: {
         filename: 'bundle.js',
         path: path.resolve(__dirname, 'dist'),
     },
-    mode: 'development', // 或 'production'
+    mode: 'development',
     devServer: {
         static: {
             directory: path.join(__dirname, 'dist'),
@@ -18,8 +19,11 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.css$/, // 处理 CSS 文件
-                use: ['style-loader', 'css-loader'],
+                test: /\.css$/,
+                use: [
+                    MiniCssExtractPlugin.loader,
+                    'css-loader'
+                ]
             }
         ],
     },
@@ -32,5 +36,8 @@ module.exports = {
             template: 'src/demos/rtree.html',
             filename: `rtree.html`
         }),
+        new MiniCssExtractPlugin({
+            filename: "[name].[contenthash].css"
+        })
     ]
 };

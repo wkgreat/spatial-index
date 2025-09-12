@@ -360,7 +360,7 @@ export class RTree {
 
         this._adjustTree(leaf, lnode, rnode);
 
-        this.__probe__("rtree:insert:finish", { target: this, geom: geom });
+        this.__probe__("rtree:insert:finish", { target: this, geom: geom, entry: leaf });
 
     };
 
@@ -859,15 +859,20 @@ export class RTree {
 
         while (nodes.length > 0) {
             const node = nodes.shift();
+
+            this.__probe__("rtree:search:path", { target: this, node: node, entry: null });
+
             if (node.isLeaf) {
                 for (let e of node.entries) {
                     if (check_func(e, mbr)) {
+                        this.__probe__("rtree:search:path", { target: this, node: node, entry: e });
                         res_entries.push(e);
                     }
                 }
             } else {
                 for (let e of node.entries) {
                     if (check_func(e, mbr)) {
+                        this.__probe__("rtree:search:path", { target: this, node: node, entry: e });
                         nodes.push(e.node);
                     }
                 }

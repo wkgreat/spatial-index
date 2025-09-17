@@ -1,10 +1,32 @@
-import Probe from "./probe";
+import { IDGenerator } from "../utils/utils.js";
+import Probe from "./probe.js";
+
+class RTreeIdGenerator {
+
+    _nodeIdGenerator = new IDGenerator();
+    _entryIdGenerator = new IDGenerator();
+    _recordIdGenerator = new IDGenerator();
+
+    constructor() {}
+
+    genNodeId() {
+        return this._nodeIdGenerator.genId();
+    }
+
+    genEntryId() {
+        return this._entryIdGenerator.genId();
+    }
+
+    genRecordId() {
+        return this._recordIdGenerator.genId();
+    }
+}
 
 /**
- * @class MBR
+ * @class RTreeMBR
  * Minimum Bounding Rectangle
 */
-export class MBR {
+export class RTreeMBR {
     /** @type {number}*/
     xmin = 0;
     /** @type {number}*/
@@ -35,11 +57,11 @@ export class MBR {
     }
 
     /**
-     * @param {MBR} mbr
-     * @returns {MBR}
+     * @param {RTreeMBR} mbr
+     * @returns {RTreeMBR}
      */
     merge(mbr) {
-        return new MBR(
+        return new RTreeMBR(
             Math.min(this.xmin, mbr.xmin),
             Math.min(this.ymin, mbr.ymin),
             Math.max(this.xmax, mbr.xmax),
@@ -47,7 +69,7 @@ export class MBR {
     }
 
     /**
-     * @param {MBR} mbr
+     * @param {RTreeMBR} mbr
      * @returns {void} 
     */
     addMbrInplace(mbr) {
@@ -70,7 +92,7 @@ export class MBR {
 
     /**
      *
-     * @param {MBR} mbr
+     * @param {RTreeMBR} mbr
      * @returns {boolean}
      */
     overlap(mbr) {
@@ -80,116 +102,49 @@ export class MBR {
     }
 
     /**
-     * @returns {MBR}
+     * @returns {RTreeMBR}
      */
     clone() {
-        return new MBR(this.xmin, this.ymin, this.xmax, this.ymax);
+        return new RTreeMBR(this.xmin, this.ymin, this.xmax, this.ymax);
     }
 }
-
-/**
- *
- * @param {number} a
- * @param {number} b
- * @returns {number}
- */
-function randomFloat(a, b) {
-    return Math.random() * (b - a) + a;
-}
-
-/**
- * @class RTreeRecord
- * @template T
- * A leaf node point to a RTreeRecord object
- * RTreeRecord contains a data field (geometry object or other object contains spatial information) and a mbr and a record id.
- * @todo replace RTreeEntry geom field to record field
-*/
-export class RTreeRecord {
-
-    /**@type {number}*/
-    id = 0;
-    /**@type {MBR}*/
-    mbr = null;
-    /**@type {T}*/
-    data = null;
-
-    static counter = 0;
-
-    /**
-     * @constructor
-     * @param {T} data
-     * @param {(T)=>MBR} toMBRFunc  
-    */
-    constructor(data, toMBRFunc) {
-        this.data = data;
-        this.mbr = toMBRFunc(data);
-        this.id = RTreeRecord.counter++;
-    }
-}
-
-/**
- * @class Geometry
- * @todo This is geometry class for R-tree test. Only contains mbr without shape data now.
- * 
-*/
-export class Geometry {
-    /** @type {number} */
-    id = 0;
-    /** @type {MBR} */
-    mbr = null;
-
-    //TODO add geometry spatial data
-    //data;
-
-    static counter = 0;
-
-    /**
-     * @static
-     * @param {[number,number,number,number]} ext
-     * @param {number} wmin
-     * @param {number} hmin
-     * @param {number} wmax
-     * @param {number} hmax
-     * @returns {Geometry}
-     */
-    static buildRandom(ext, wmin, hmin, wmax, hmax) {
-        const [xmin, ymin, xmax, ymax] = ext;
-        let x0 = randomFloat(xmin, xmax);
-        let y0 = randomFloat(ymin, ymax);
-        let x1 = Math.min(x0 + randomFloat(wmin, wmax), xmax);
-        let y1 = Math.min(y0 + randomFloat(hmin, hmax), ymax);
-        const g = new Geometry();
-        g.id = Geometry.counter++;
-        g.mbr = new MBR(x0, y0, x1, y1);
-        return g;
-    }
-
-    /**
-     * @static
-     * @param {MBR} mbr
-     * @returns {Geometry}
-     */
-    static buildFromMbr(mbr) {
-        const g = new Geometry();
-        g.id = Geometry.counter++;
-        g.mbr = mbr;
-        return g;
-    }
-};
 
 /**
  * @class RTree
  * @todo add write lock
  * @todo replace geometry to record
  * RTree class
+ * @typedef {(object)=>RTreeMBR} ToRtreeMBRFunc
 */
 export class RTree {
+
+    /**@type {number} dimension of Rtree*/
+    _dim = 2;
+
+    /**@type {ToRtreeMBRFunc}*/
+    _toMbrFunc = null;
 
     /**@type {RTreeNode|null}*/
     root = null;
 
     /**@type {Probe}*/
     _probe = null;
+
+    /**@type {RTreeIdGenerator}*/
+    _idGenerator = new RTreeIdGenerator();
+
+    /**
+     * @constructor 
+     * @param {number} [m=2] - minimum number of entries in a node, m should be little or equal than M.
+     * @param {number} [m=5] - maximum number of entries in a node.
+     * @param {number} [d=2] - dimension of rtree
+     */
+    constructor(m = 2, M = 5, d = 2) {
+        // TODO validate m and M
+        this.m = m;
+        this.M = M;
+        this._dim = d;
+    }
 
     /**
      * @param {Probe} probe 
@@ -199,13 +154,24 @@ export class RTree {
     }
 
     /**
-     * @constructor 
-     * @param {number} m - minimum number of entries in a node, m should be little or equal than M.
-     * @param {number} M - maximum number of entries in a node.
+     * @param {ToRtreeMBRFunc} f 
     */
-    constructor(m, M) {
-        this.m = m;
-        this.M = M;
+    setToMbrFunc(f) {
+        this._toMbrFunc = f;
+    }
+
+    /**
+     * @param {object} data
+     * @param {ToRtreeMBRFunc} [toMbrFunc=null]  
+    */
+    _getDataMbr(data, toMbrFunc = null) {
+        if (toMbrFunc) {
+            return toMbrFunc(data);
+        } else if (this._toMbrFunc) {
+            return this._toMbrFunc(data);
+        } else {
+            console.error("toMbrFunc is NULL! you must set a toMbrFunc before.");
+        }
     }
 
     /**
@@ -283,7 +249,7 @@ export class RTree {
      */
     _chooseNodeEntryIn(entry, entry_level) {
         if (this.root === null) {
-            this.root = RTreeNode.buildRoot();
+            this.root = RTreeNode.buildRoot(this);
         }
 
         let level = 0;
@@ -320,28 +286,19 @@ export class RTree {
         return N;
     }
 
-    /**
-     * @param {Geometry[]} geoms 
-     * @returns {void}
-    */
-    insertGeometries(geoms) {
-        geoms.forEach(g => this.insert(g));
-    }
+    insert(data, toMbrFunc = null) {
 
-    /**
-     * @param {Geometry} geom 
-     * @returns {void}
-    */
-    insert(geom) {
+        const record = new RTreeRecord(this, data, this._getDataMbr(data, toMbrFunc));
 
-        this.__probe__("rtree:insert:start", { target: this, geom: geom });
+        this.__probe__("rtree:insert:start", { target: this, record: record, data: data });
 
-        if (geom === null) {
+        if (data === null) {
             console.error("not support null geom now.");
+            this.__probe__("rtree:insert:finish", { target: this, node: null, entry: null, record: null, data: null });
             return;
         }
 
-        let entry = RTreeEntry.buildFromGeom(geom);
+        let entry = RTreeEntry.buildFromRecord(record);
 
         let leaf = this._chooseLeaf(entry);
 
@@ -360,9 +317,9 @@ export class RTree {
 
         this._adjustTree(leaf, lnode, rnode);
 
-        this.__probe__("rtree:insert:finish", { target: this, geom: geom, entry: leaf });
+        this.__probe__("rtree:insert:finish", { target: this, node: leaf, entry: entry, record: record, data: data });
 
-    };
+    }
 
     /**
      * @param {RTreeEntry} entry
@@ -371,7 +328,7 @@ export class RTree {
     _chooseLeaf(entry) {
 
         if (this.root === null) {
-            this.root = RTreeNode.buildRoot();
+            this.root = RTreeNode.buildRoot(this);
         }
 
         let N = this.root;
@@ -450,7 +407,7 @@ export class RTree {
         }
 
         if (R === this.root && N2 !== null) { // has propagated to root
-            const newRoot = RTreeNode.buildRoot();
+            const newRoot = RTreeNode.buildRoot(this);
             newRoot.parent = null;
             newRoot.isLeaf = false;
             N1.parent = newRoot;
@@ -471,14 +428,15 @@ export class RTree {
     }
 
     /**
-     * @param {Geometry} geom 
+     * @param {object} data 
+     * @param {ToRtreeMBRFunc} [toMbrFunc=null]
      * @returns {void}
     */
-    delete(geom) {
+    delete(data, toMbrFunc = null) {
 
-        this.__probe__("rtree:delete:start", { target: this, geom: geom });
+        this.__probe__("rtree:delete:start", { target: this, data: data });
 
-        const [leaf, entry] = this._findLeaf(geom);
+        const [leaf, entry] = this._findLeaf(data, this._getDataMbr(data, toMbrFunc));
         if (leaf === null || entry === null) {
             return;
         }
@@ -493,14 +451,15 @@ export class RTree {
             this.root = newRoot;
         }
 
-        this.__probe__("rtree:delete:finish", { target: this, geom: geom });
+        this.__probe__("rtree:delete:finish", { target: this, data: data });
     };
 
     /**
-     * @param {Geometry} geom
+     * @param {object} data
+     * @param {RTreeMBR} mbr 
      * @returns {[RTreeNode,RTreeEntry]} 
     */
-    _findLeaf(geom) {
+    _findLeaf(data, mbr) {
 
         const nodes = []; //stack of nodes
         nodes.push(this.root);
@@ -508,13 +467,13 @@ export class RTree {
             const node = nodes.pop();
             if (!node.isLeaf) {
                 for (let e of node.entries) {
-                    if (geom.mbr.overlap(e.mbr)) {
+                    if (mbr.overlap(e.mbr)) {
                         nodes.push(e.node);
                     }
                 }
             } else {
                 for (let e of node.entries) {
-                    if (e.geom === geom) { //here check geom is equal
+                    if (e.record.data === data) { //here check geom is equal
                         return [node, e];
                     }
                 }
@@ -574,12 +533,12 @@ export class RTree {
      * @returns {[RTreeNode,RTreeNode]} return two nodes
     */
     _splitNode(node) {
-        const lnode = RTreeNode.buildEmptyNode();
+        const lnode = RTreeNode.buildEmptyNode(this);
         lnode.parent = node.parent;
         lnode.entry = node.entry;
         lnode.isLeaf = node.isLeaf;
 
-        const rnode = RTreeNode.buildEmptyNode();
+        const rnode = RTreeNode.buildEmptyNode(this);
         rnode.parent = node.parent;
         rnode.entry = null;
         rnode.isLeaf = node.isLeaf;
@@ -628,7 +587,7 @@ export class RTree {
 
     /**
      * @param {RTreeNode} node
-     * @returns {MBR}
+     * @returns {RTreeMBR}
      */
     _computeNodeMbr(node) {
         if (node === null || node.entries.length === 0) {
@@ -846,8 +805,8 @@ export class RTree {
     }
 
     /**
-     * @param {MBR} mbr search mbr 
-     * @param {(RTreeEntry,MBR)=>boolean} check_func check the entry and the mbr is matched
+     * @param {RTreeMBR} mbr search mbr 
+     * @param {(RTreeEntry, RTreeMBR)=>boolean} check_func check the entry and the mbr is matched
      * @returns {RTreeEntry[]}
     */
     search(mbr, check_func) {
@@ -884,7 +843,7 @@ export class RTree {
 
 
     /**
-     * @param {MBR} mbr
+     * @param {RTreeMBR} mbr
      * @returns {RTreeEntry[]}
     */
     search_overlap(mbr) {
@@ -919,8 +878,11 @@ export class RTree {
  */
 export class RTreeNode {
 
+    /**@type {RTree}*/
+    tree = null;
+
     /**@type {string}*/
-    id = "";
+    _id = null;
 
     /**
      * @type {RTreeNode|null}
@@ -946,11 +908,12 @@ export class RTreeNode {
 
     /**
      * @static
+     * @param {RTree} tree 
      * @returns {RTreeNode}
     */
-    static buildRoot() {
+    static buildRoot(tree) {
         const root = new RTreeNode();
-        root.id = RTreeNode.counter++;
+        root.tree = tree;
         root.parent = null;
         root.entry = null;
         root.isLeaf = true;
@@ -958,12 +921,20 @@ export class RTreeNode {
         return root;
     }
 
+    get id() {
+        if (this._id === null) {
+            this._id = this.tree._idGenerator.genNodeId();
+        }
+        return this._id;
+    }
+
     /**
+     * @param {RTree} tree 
      * @returns {RTreeNode}
      */
-    static buildEmptyNode() {
+    static buildEmptyNode(tree) {
         const node = new RTreeNode();
-        node.id = RTreeNode.counter++;
+        node.tree = tree;
         node.parent = null;
         node.entry = null;
         node.isLeaf = false;
@@ -1005,10 +976,14 @@ export class RTreeNode {
  */
 export class RTreeEntry {
 
-    id = 0;
+    /**@type {RTree}*/
+    tree = null;
+
+    /**@type {number}*/
+    _id = null;
 
     /**
-     * @type {MBR}
+     * @type {RTreeMBR}
      * mbr of this entry
     */
     mbr = null;
@@ -1024,24 +999,17 @@ export class RTreeEntry {
     node = null;
     /**
      * @type {Geometry}
-     * if leaf entry, geom is the geometry that the entry point
+     * if leaf entry, record is not null
     */
-    geom = null;
+    record = null;
 
-    static counter = 0;
-
-    /**
-     * @static
-     * @param {Geometry} geom
-     * @returns {RTreeEntry} 
-    */
-    static buildFromGeom(geom) {
+    static buildFromRecord(record) {
         const entry = new RTreeEntry();
-        entry.id = RTreeEntry.counter++;
-        entry.mbr = geom.mbr;
+        entry.tree = record.tree;
+        entry.mbr = record.mbr;
         entry.isLeaf = true;
         entry.node = null;
-        entry.geom = geom;
+        entry.record = record;
         return entry;
     }
 
@@ -1052,12 +1020,19 @@ export class RTreeEntry {
      */
     static buildFromNode(node) {
         const entry = new RTreeEntry();
-        entry.id = RTreeEntry.counter++;
+        entry.tree = node.tree;
         entry.isLeaf = false;
         entry.node = node;
         entry.refreshMBR();
         node.entry = entry;
         return entry;
+    }
+
+    get id() {
+        if (this._id === null) {
+            this._id = this.tree._idGenerator.genEntryId();
+        }
+        return this._id;
     }
 
     /**
@@ -1066,7 +1041,7 @@ export class RTreeEntry {
     refreshMBR() {
 
         if (this.isLeaf) {
-            this.mbr = this.geom.mbr;
+            this.mbr = this.record.mbr;
         } else {
             let mbr = this.node.entries[0].mbr;
             for (let i = 1; i < this.node.entries.length; ++i) {
@@ -1076,46 +1051,40 @@ export class RTreeEntry {
         }
 
     }
-
-    /**
-     * @param {boolean} b
-     */
-    setIsLeaf(b) {
-        this.isLeaf = b;
-    }
-    /**
-     * @returns {boolean}
-     */
-    getIsLeaf() {
-        return this.isLeaf();
-    }
-
-    /**
-     *
-     * @param {RTreeNode} node
-     */
-    setNode(node) {
-        this.node = node;
-    }
-    /**
-     * @returns {RTreeNode}
-     */
-    getNode() {
-        return this.node;
-    }
-
-    /**
-     *
-     * @param {Geometry} geom
-     */
-    setGeom(geom) {
-        this.geom = geom;
-    }
-    /**
-     * @returns {Geometry}
-     */
-    getGeom() {
-        return this.geom;
-    }
-
 };
+
+/**
+ * @class RTreeRecord
+ * @template T
+ * A leaf node point to a RTreeRecord object
+ * RTreeRecord contains a data field (geometry object or other object contains spatial information) and a mbr and a record id.
+ * @todo replace RTreeEntry geom field to record field
+*/
+export class RTreeRecord {
+
+    tree = null;
+    /**@type {number}*/
+    _id = null;
+    /**@type {RTreeMBR}*/
+    mbr = null;
+    /**@type {T}*/
+    data = null;
+
+    /**
+     * @constructor
+     * @param {T} data
+     * @param {RTreeMBR} mbr
+    */
+    constructor(tree, data, mbr) {
+        this.tree = tree;
+        this.data = data;
+        this.mbr = mbr;
+    }
+
+    get id() {
+        if (this._id === null) {
+            this._id = this.tree._idGenerator.genRecordId();
+        }
+        return this._id;
+    }
+}

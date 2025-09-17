@@ -1,0 +1,27 @@
+{
+  "name": "spatial-index",
+  "version": "1.0.0",
+  "main": "dist/spatial-index/cjs/index.js",
+  "module": "dist/spatial-index/esm/index.js",
+  "type": "module",
+  "repository": "https://github.com/wkgreat/spatial-index.git",
+  "author": "ke.wang <wkgreat@outlook.com>",
+  "license": "MIT",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {},
+  "scripts": {
+    "build": "rollup -c",
+    "deploy": "gh-pages -d dist",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "lint:strict": "eslint src --max-warnings=0",
+    "test": "jest test",
+    "test:watch": "jest test --watch"
+  },
+  "dependencies": {
+    "cytoscape": "^3.33.1"
+  }
+}

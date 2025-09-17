@@ -1,0 +1,14 @@
+{
+  "name": "spatial-index-demos",
+  "version": "1.0.0",
+  "description": "spatial index web demos",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {},
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "start": "webpack-dev-server --config webpack.config.js",
+    "deploy": "gh-pages -d dist"
+  }
+}

@@ -3,9 +3,9 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const path = require('path');
 
 module.exports = {
-    entry: './src/index.js',
+    entry: "./index.js",
     output: {
-        filename: 'bundle.js',
+        filename: '[name].bundle.js',
         path: path.resolve(__dirname, 'dist'),
     },
     mode: 'development',
@@ -19,6 +19,15 @@ module.exports = {
     module: {
         rules: [
             {
+                test: /\.js$/,
+                exclude: [
+                    /node_modules/,
+                    /__tests__/,
+                    /\.test\.js$/,
+                    /\.spec\.js$/
+                ],
+            },
+            {
                 test: /\.css$/,
                 use: [
                     MiniCssExtractPlugin.loader,
@@ -29,11 +38,11 @@ module.exports = {
     },
     plugins: [
         new HtmlWebpackPlugin({
-            template: 'src/index.html',
+            template: 'index.html',
             filename: `index.html`
         }),
         new HtmlWebpackPlugin({
-            template: 'src/demos/rtree.html',
+            template: 'rtree.html',
             filename: `rtree.html`
         }),
         new MiniCssExtractPlugin({

@@ -1,7 +1,6 @@
 import cytoscape from "cytoscape";
-import Probe from "./probe";
-import { MBR, RTree, RTreeEntry, RTreeNode } from "./rtree";
-import { sleep } from "../utils/utils";
+import Probe from "./probe.js";
+import { RTreeMBR, RTree, RTreeEntry, RTreeNode } from "./rtree.js";
 
 /**
  * @class RTreeStateMachine
@@ -17,8 +16,11 @@ class RTreeStateMachine {
     selectNode = null;
     selectRecord = null;
 
-    insertGeom = null;
+    insertResultNode = null;
     insertResultEntry = null;
+    insertRecord = null;
+    insertData = null;
+
 
     searchCondition = null;
     searchPath = null;
@@ -26,10 +28,12 @@ class RTreeStateMachine {
 
     constructor() {}
 
-    setInsert(insertGeom, resultEntry) {
+    setInsert(resultNode, resultEntry, record, data) {
         this.state = 'INSERT';
-        this.insertGeom = insertGeom;
+        this.insertResultNode = resultNode;
         this.insertResultEntry = resultEntry;
+        this.insertRecord = record;
+        this.insertData = data;
     }
 
     setSelect(selectEntry, selectNode, selectRecord) {
@@ -84,6 +88,7 @@ class RTreeStateMachine {
 export class RTreeRender extends Probe {
 
     //TODO set graph element and canvas element
+    //TODO use cytoscape batch
 
     layout_breadthfirst = {
         name: 'breadthfirst',
@@ -194,7 +199,7 @@ export class RTreeRender extends Probe {
                 let selectRecord = null;
                 if (selectEntry.isLeaf) {
                     selectNode = null;
-                    selectRecord = selectEntry.geom;
+                    selectRecord = selectEntry.record;
                 } else {
                     selectNode = selectEntry.node;
                     selectRecord = null;
@@ -207,6 +212,7 @@ export class RTreeRender extends Probe {
 
         })
     }
+
 
     refreshGraphStyle() {
         this.refreshGraphDefaultStyle();
@@ -259,7 +265,7 @@ export class RTreeRender extends Probe {
         this.cy.edges('[classes = "aux"]').style({
             'display': 'none'
         });
-        this.cy.nodes('[type = "geom"]').style({
+        this.cy.nodes('[type = "record"]').style({
             'background-color': 'red',
             'background-opacity': 0.4,
             'width': 8,
@@ -280,7 +286,7 @@ export class RTreeRender extends Probe {
 
             const nodeGraphId = nodeId >= 0 ? `#node-${this.stateMachine.selectNode.id}` : null;
             const entryGraphId = entryId >= 0 ? `#entry-${this.stateMachine.selectEntry.id}` : null;
-            const recordGraphId = recordId >= 0 ? `#geom-${this.stateMachine.selectRecord.id}` : null;
+            const recordGraphId = recordId >= 0 ? `#record-${this.stateMachine.selectRecord.id}` : null;
 
             if (nodeGraphId) {
                 const nodeElement = this.cy.$(nodeGraphId).first();
@@ -320,7 +326,7 @@ export class RTreeRender extends Probe {
             }
 
             if (entryId >= 0 && recordId >= 0) {
-                const edgeGraphId = `#edge-${entryId}-geom-${recordId}`
+                const edgeGraphId = `#edge-${entryId}-record-${recordId}`
                 const edgeElement = this.cy.$(edgeGraphId).first();
                 edgeElement.style({
                     'line-color': 'red',
@@ -330,7 +336,33 @@ export class RTreeRender extends Probe {
             }
         }
         else if (this.stateMachine.state === 'INSERT') {
-            //TODO
+
+            if (this.stateMachine.insertData === null) {
+                return;
+            }
+
+            const entry = this.stateMachine.insertResultEntry;
+            const entryGraphId = `#entry-${entry.id}`;
+            const entryElement = this.cy.$(entryGraphId).first();
+            entryElement.style({
+                'border-width': '4px',
+                'border-color': 'red'
+            });
+            const recordId = entry.record.id;
+            const recordGraphId = `#record-${recordId}`;
+            const recordGraphElem = this.cy.$(recordGraphId).first();
+            recordGraphElem.style({
+                'border-width': '4px',
+                'border-color': 'red'
+            });
+            const edgeId = `#edge-${entry.id}-record-${recordId}`
+            const edgeElement = this.cy.$(edgeId).first();
+            edgeElement.style({
+                'line-color': 'red',
+                'width': '4px',
+                'target-arrow-color': 'red'
+            });
+
         }
         else if (this.stateMachine.state === 'SEARCH') {
 
@@ -352,14 +384,14 @@ export class RTreeRender extends Probe {
                         'border-color': 'red'
                     });
                     if (elem.isLeaf) {
-                        const recordId = elem.geom.id;
-                        const recordGraphId = `#geom-${recordId}`;
+                        const recordId = elem.record.id;
+                        const recordGraphId = `#record-${recordId}`;
                         const recordGraphElem = this.cy.$(recordGraphId).first();
                         recordGraphElem.style({
                             'border-width': '4px',
                             'border-color': 'red'
                         });
-                        const edgeId = `#edge-${elem.id}-geom-${recordId}`
+                        const edgeId = `#edge-${elem.id}-record-${recordId}`
                         const edge = this.cy.$(edgeId).first();
                         edge.style({
                             'line-color': 'red',
@@ -395,8 +427,8 @@ export class RTreeRender extends Probe {
      * @param {object} data
      */
     probeRtreeInsertFinish(tag, data) {
-        this.stateMachine.setInsert(data["geom"], data["entry"]);
-        this.render();
+        this.stateMachine.setInsert(data["node"], data["entry"], data["record"], data["data"]);
+        this.render(); //TODO only add insert node and edge
     }
 
     probeRtreeSearchOverlapStart(tag, data) {
@@ -551,46 +583,51 @@ export class RTreeRender extends Probe {
             return;
         }
 
-        //node
-        let d = { data: { id: `node-${node.id}`, type: "node", isLeaf: node.isLeaf ? "true" : "false", name: `${node.id}(${node.entries.length})` } };
-        this.cy.add({ group: 'nodes', data: d.data });
-
-        d = { data: { id: `inner-node-${node.id}`, parent: `node-${node.id}`, type: "inner-node", isLeaf: node.isLeaf ? "true" : "false", name: `xxx`, classes: 'aux' } };
-        this.cy.add({ group: 'nodes', data: d.data });
-
-        if (node.parent !== null) {
-
-            //aux edge
-            d = { data: { id: `inner-edge-${node.parent.id}-${node.id}`, type: "inner-edge", name: `xxx`, source: `inner-node-${node.parent.id}`, target: `inner-node-${node.id}`, classes: 'aux' } };
-            this.cy.add({ group: 'edges', data: d.data });
-
-            //entry to node
-            d = { data: { id: `edge-${node.entry.id}-${node.id}`, type: "edge", name: `${node.parent.id}->${node.id}`, source: `entry-${node.entry.id}`, target: `node-${node.id}` } };
-            this.cy.add({ group: 'edges', data: d.data });
-        }
-        for (let e of node.entries) {
-
-            //entry
-            d = { data: { id: `entry-${e.id}`, type: 'entry', parent: `node-${node.id}`, isLeaf: e.isLeaf ? "true" : "false", name: `${e.id}` } };
+        this.cy.batch(() => {
+            //node
+            let d = { data: { id: `node-${node.id}`, type: "node", isLeaf: node.isLeaf ? "true" : "false", name: `${node.id}(${node.entries.length})` } };
             this.cy.add({ group: 'nodes', data: d.data });
 
-            //inner node to entry
-            d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', name: "", source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
-            this.cy.add({ group: 'edges', data: d.data });
+            d = { data: { id: `inner-node-${node.id}`, parent: `node-${node.id}`, type: "inner-node", isLeaf: node.isLeaf ? "true" : "false", name: `xxx`, classes: 'aux' } };
+            this.cy.add({ group: 'nodes', data: d.data });
 
-            if (e.isLeaf) {
-                const g = e.geom;
-                //geom node
-                d = { data: { id: `geom-${g.id}`, type: 'geom', parent: `geom-${g.id}`, name: `${g.id}` } };
-                this.cy.add({ group: 'nodes', data: d.data });
+            if (node.parent !== null) {
 
-                //entry to geom
-                d = { data: { id: `edge-${e.id}-geom-${g.id}`, type: 'edge', name: "", source: `entry-${e.id}`, target: `geom-${g.id}` } };
+                //aux edge
+                d = { data: { id: `inner-edge-${node.parent.id}-${node.id}`, type: "inner-edge", name: `xxx`, source: `inner-node-${node.parent.id}`, target: `inner-node-${node.id}`, classes: 'aux' } };
+                this.cy.add({ group: 'edges', data: d.data });
+
+                //entry to node
+                d = { data: { id: `edge-${node.entry.id}-${node.id}`, type: "edge", name: `${node.parent.id}->${node.id}`, source: `entry-${node.entry.id}`, target: `node-${node.id}` } };
                 this.cy.add({ group: 'edges', data: d.data });
             }
+            for (let e of node.entries) {
 
-        }
+                //entry
+                d = { data: { id: `entry-${e.id}`, type: 'entry', parent: `node-${node.id}`, isLeaf: e.isLeaf ? "true" : "false", name: `${e.id}` } };
+                this.cy.add({ group: 'nodes', data: d.data });
 
+                //inner node to entry
+                d = { data: { id: `edge-${e.id}-node-${node.id}`, type: 'inner-edge', name: "", source: `inner-node-${node.id}`, target: `entry-${e.id}`, classes: 'aux' } };
+                this.cy.add({ group: 'edges', data: d.data });
+
+                if (e.isLeaf) {
+                    const g = e.record;
+                    //record node
+                    d = { data: { id: `record-${g.id}`, type: 'record', parent: `record-${g.id}`, name: `${g.id}` } };
+                    this.cy.add({ group: 'nodes', data: d.data });
+
+                    //entry to record
+                    d = { data: { id: `edge-${e.id}-record-${g.id}`, type: 'edge', name: "", source: `entry-${e.id}`, target: `record-${g.id}` } };
+                    this.cy.add({ group: 'edges', data: d.data });
+                }
+
+            }
+        })
+    }
+
+    addEntryToGraph(node, entry) {
+        //TODO
     }
 
     /**
@@ -599,7 +636,7 @@ export class RTreeRender extends Probe {
     graph_render() {
 
         const nodes = [];
-        // this.data.elements = [];
+
         this.cy.elements().remove();
 
         this.refreshGraph();
@@ -621,12 +658,10 @@ export class RTreeRender extends Probe {
                     }
                 }
 
-                this.refreshGraph();
             }
         }
 
         this.refreshGraph();
-        this.refreshGraphStateStyle();
 
     }
 
@@ -665,7 +700,7 @@ export class RTreeRender extends Probe {
         /**
          *
          * @param {CanvasRenderingContext2D} ctx
-         * @param {MBR} mbr
+         * @param {RTreeMBR} mbr
          * @param {object} props
          */
         function render_mbr(ctx, mbr, props) {

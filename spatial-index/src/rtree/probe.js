@@ -1,3 +1,5 @@
+import { sleep } from "../utils/utils.js";
+
 /**
  *
  */
@@ -19,12 +21,13 @@ class Probe {
      * @param {string} tag
      * @param {object} data  
     */
-    probe(tag, data) {
+    async probe(tag, data) {
         if (this.handlers.has(tag)) {
             for (let f of this.handlers.get(tag)) {
                 f(tag, data);
             }
         }
+        await sleep(1000);
     }
 
     /**

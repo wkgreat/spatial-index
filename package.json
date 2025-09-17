@@ -15,7 +15,7 @@
     "test": "yarn workspace spatial-index run test",
     "build:demo": "yarn workspace spatial-index-demos run build",
     "start:demo": "yarn workspace spatial-index-demos run start",
-    "deploy:demo": "yarn workspace spatial-index-demos run deploy"
+    "deploy": "yarn workspace spatial-index-demos run deploy"
   },
   "devDependencies": {
     "@babel/core": "^7.28.4",

@@ -1,6 +1,6 @@
 import cytoscape from "cytoscape";
-import Probe from "./probe.js";
-import { RTreeMBR, RTree, RTreeEntry, RTreeNode, RTreeRecord } from "./rtree.js";
+import Probe from "./probe";
+import { RTreeMBR, RTree, RTreeEntry, RTreeNode, RTreeRecord } from "./rtree";
 
 type RTreeRenderExtent = [number, number, number, number];
 type RTreeRenderCanvasCoordConvertFuncType = (x: number, y: number) => [number, number];

@@ -1,5 +1,5 @@
-import { IDGenerator } from "../utils/utils.js";
-import type Probe from "./probe.js";
+import { IDGenerator, inRange } from "../utils/utils";
+import type Probe from "./probe";
 
 class RTreeIdGenerator {
 
@@ -104,6 +104,13 @@ export class RTreeMBR {
         const b1 = this._intervalOverlap(this.xmin, this.xmax, mbr.xmin, mbr.xmax);
         const b2 = this._intervalOverlap(this.ymin, this.ymax, mbr.ymin, mbr.ymax);
         return b1 && b2;
+    }
+
+    within(mbr: RTreeMBR): boolean {
+        return inRange(this.xmin, mbr.xmin, mbr.xmax) &&
+            inRange(this.xmax, mbr.xmin, mbr.xmax) &&
+            inRange(this.ymin, mbr.ymin, mbr.ymax) &&
+            inRange(this.ymax, mbr.ymin, mbr.ymax);
     }
 
     /**

@@ -1,4 +1,4 @@
-import { sleep } from "../utils/utils.js";
+import { sleep } from "../utils/utils";
 
 type ProbeCallback = (tag: string, object: any) => void;
 

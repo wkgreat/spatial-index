@@ -1,4 +1,4 @@
-import { RTree } from "./rtree.js";
-import { RTreeRender } from "./rtree_render.js";
+import { RTree } from "./rtree";
+import { RTreeRender } from "./rtree_render";
 
 export { RTree, RTreeRender };

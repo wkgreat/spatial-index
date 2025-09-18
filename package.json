@@ -12,10 +12,10 @@
   ],
   "scripts": {
     "build:spatial-index": "yarn workspace spatial-index run build",
-    "build": "yarn workspaces run build",
-    "test": "yarn workspaces run test",
-    "build:demo": "yarn run build:spatial-index && yarn workspace spatial-index-demos run build",
-    "start:demo": "yarn run build:spatial-index && yarn workspace spatial-index-demos run start",
+    "build:demo": "yarn workspace spatial-index-demos run build",
+    "start:demo": "yarn run build && yarn workspace spatial-index-demos start",
+    "build": "yarn run build:spatial-index && yarn run build:demo",
+    "test": "yarn workspace spatial-index run test",
     "deploy": "yarn workspace spatial-index-demos run deploy"
   },
   "devDependencies": {
@@ -38,6 +38,7 @@
     "rollup": "^4.50.2",
     "rollup-plugin-dts": "^6.2.3",
     "style-loader": "^4.0.0",
+    "ts-jest": "^29.4.2",
     "typescript": "^5.9.2",
     "webpack": "^5.101.3",
     "webpack-cli": "^6.0.1",

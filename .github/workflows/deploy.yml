@@ -23,9 +23,8 @@ jobs:
       - name: Install dependencies
         run: yarn install
       
-      # TODO test
-      # - name: Run Test
-      #   run: yarn run test
+      - name: Run Test
+        run: yarn run test
 
       - name: Build project
         run: yarn run build

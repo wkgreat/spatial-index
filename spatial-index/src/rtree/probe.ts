@@ -1,8 +1,7 @@
 import { sleep } from "../utils/utils.js";
 
-/**
- *
- */
+type ProbeCallback = (tag: string, object: any) => void;
+
 class Probe {
 
     /**
@@ -21,7 +20,7 @@ class Probe {
      * @param {string} tag
      * @param {object} data  
     */
-    async probe(tag, data) {
+    async probe(tag: string, data: any) {
         if (this.handlers.has(tag)) {
             for (let f of this.handlers.get(tag)) {
                 f(tag, data);
@@ -34,7 +33,7 @@ class Probe {
      * @param {string} tag
      * @param {ProbeCallback} func  
     */
-    addTrigger(tag, func) {
+    addTrigger(tag: string, func: ProbeCallback) {
 
         if (!this.handlers.has(tag)) {
             this.handlers.set(tag, []);

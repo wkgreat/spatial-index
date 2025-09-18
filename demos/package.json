@@ -5,7 +5,9 @@
   "main": "index.js",
   "license": "MIT",
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "spatial-index": "workspace:*"
+  },
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server --config webpack.config.js",

@@ -1,23 +1,23 @@
 import { IDGenerator } from "../utils/utils.js";
-import Probe from "./probe.js";
+import type Probe from "./probe.js";
 
 class RTreeIdGenerator {
 
-    _nodeIdGenerator = new IDGenerator();
-    _entryIdGenerator = new IDGenerator();
-    _recordIdGenerator = new IDGenerator();
+    _nodeIdGenerator: IDGenerator = new IDGenerator();
+    _entryIdGenerator: IDGenerator = new IDGenerator();
+    _recordIdGenerator: IDGenerator = new IDGenerator();
 
     constructor() {}
 
-    genNodeId() {
+    genNodeId(): number {
         return this._nodeIdGenerator.genId();
     }
 
-    genEntryId() {
+    genEntryId(): number {
         return this._entryIdGenerator.genId();
     }
 
-    genRecordId() {
+    genRecordId(): number {
         return this._recordIdGenerator.genId();
     }
 }
@@ -28,13 +28,13 @@ class RTreeIdGenerator {
 */
 export class RTreeMBR {
     /** @type {number}*/
-    xmin = 0;
+    xmin: number = 0;
     /** @type {number}*/
-    ymin = 0;
+    ymin: number = 0;
     /** @type {number}*/
-    xmax = 0;
+    xmax: number = 0;
     /** @type {number}*/
-    ymax = 0;
+    ymax: number = 0;
     /**
      * @constructor
      * @param {number} xmin
@@ -42,7 +42,7 @@ export class RTreeMBR {
      * @param {number} xmax
      * @param {number} ymax
      */
-    constructor(xmin, ymin, xmax, ymax) {
+    constructor(xmin: number, ymin: number, xmax: number, ymax: number) {
         this.xmin = xmin;
         this.ymin = ymin;
         this.xmax = xmax;
@@ -52,7 +52,7 @@ export class RTreeMBR {
     /**
      * @returns {number} 
      */
-    area() {
+    area(): number {
         return (this.xmax - this.xmin) * (this.ymax - this.ymin);
     }
 
@@ -60,19 +60,24 @@ export class RTreeMBR {
      * @param {RTreeMBR} mbr
      * @returns {RTreeMBR}
      */
-    merge(mbr) {
-        return new RTreeMBR(
-            Math.min(this.xmin, mbr.xmin),
-            Math.min(this.ymin, mbr.ymin),
-            Math.max(this.xmax, mbr.xmax),
-            Math.max(this.ymax, mbr.ymax));
+    merge(mbr: RTreeMBR | null): RTreeMBR {
+        if (mbr) {
+            return new RTreeMBR(
+                Math.min(this.xmin, mbr.xmin),
+                Math.min(this.ymin, mbr.ymin),
+                Math.max(this.xmax, mbr.xmax),
+                Math.max(this.ymax, mbr.ymax));
+        } else {
+            return this.clone();
+        }
+
     }
 
     /**
      * @param {RTreeMBR} mbr
      * @returns {void} 
     */
-    addMbrInplace(mbr) {
+    addMbrInplace(mbr: RTreeMBR) {
         this.xmin = Math.min(this.xmin, mbr.xmin);
         this.ymin = Math.min(this.ymin, mbr.ymin);
         this.xmax = Math.max(this.xmax, mbr.xmax);
@@ -86,7 +91,7 @@ export class RTreeMBR {
      * @param {number} bmax
      * @returns {boolean}
      */
-    _intervalOverlap(amin, amax, bmin, bmax) {
+    _intervalOverlap(amin: number, amax: number, bmin: number, bmax: number) {
         return Math.max(amin, bmin) <= Math.min(amax, bmax);
     }
 
@@ -95,7 +100,7 @@ export class RTreeMBR {
      * @param {RTreeMBR} mbr
      * @returns {boolean}
      */
-    overlap(mbr) {
+    overlap(mbr: RTreeMBR) {
         const b1 = this._intervalOverlap(this.xmin, this.xmax, mbr.xmin, mbr.xmax);
         const b2 = this._intervalOverlap(this.ymin, this.ymax, mbr.ymin, mbr.ymax);
         return b1 && b2;
@@ -109,6 +114,12 @@ export class RTreeMBR {
     }
 }
 
+type ToRtreeMBRFunc = (object: any) => RTreeMBR;
+
+type PickSeedsFuncType = (node: RTreeNode) => [number, number];
+type PickNextFuncType = (node1: RTreeNode, node2: RTreeNode, node3: RTreeNode, mbr1: RTreeMBR, mbr2: RTreeMBR) => [number, RTreeNode]
+type RTreeSearchCheckFuncType = (entry: RTreeEntry, mbr: RTreeMBR) => boolean;
+
 /**
  * @class RTree
  * @todo add write lock
@@ -118,17 +129,21 @@ export class RTreeMBR {
 */
 export class RTree {
 
+    m = 2;
+
+    M = 5;
+
     /**@type {number} dimension of Rtree*/
     _dim = 2;
 
-    /**@type {ToRtreeMBRFunc}*/
-    _toMbrFunc = null;
+    /**@type {ToRtreeMBRFunc|null}*/
+    _toMbrFunc: ToRtreeMBRFunc | null = null;
 
     /**@type {RTreeNode|null}*/
-    root = null;
+    root: RTreeNode | null = null;
 
     /**@type {Probe}*/
-    _probe = null;
+    _probe: Probe | null = null;
 
     /**@type {RTreeIdGenerator}*/
     _idGenerator = new RTreeIdGenerator();
@@ -149,28 +164,31 @@ export class RTree {
     /**
      * @param {Probe} probe 
     */
-    setProbe(probe) {
+    setProbe(probe: Probe) {
         this._probe = probe;
     }
+
+
 
     /**
      * @param {ToRtreeMBRFunc} f 
     */
-    setToMbrFunc(f) {
+    setToMbrFunc(f: ToRtreeMBRFunc) {
         this._toMbrFunc = f;
     }
 
     /**
      * @param {object} data
-     * @param {ToRtreeMBRFunc} [toMbrFunc=null]  
+     * @param {ToRtreeMBRFunc} toMbrFunc
     */
-    _getDataMbr(data, toMbrFunc = null) {
+    _getDataMbr(data: any, toMbrFunc?: ToRtreeMBRFunc): RTreeMBR | null {
         if (toMbrFunc) {
             return toMbrFunc(data);
         } else if (this._toMbrFunc) {
             return this._toMbrFunc(data);
         } else {
             console.error("toMbrFunc is NULL! you must set a toMbrFunc before.");
+            return null;
         }
     }
 
@@ -178,7 +196,7 @@ export class RTree {
      * @param {string} tag
      * @param {object} data
      */
-    __probe__(tag, data) {
+    __probe__(tag: string, data: object) {
         if (this._probe) {
             this._probe.probe(tag, data);
         }
@@ -193,10 +211,13 @@ export class RTree {
             return -1;
         }
         let l = 0;
-        let n = this.root;
-        while (!n.isLeaf) {
-            n = n.entries[0].node;
-            l += 1;
+        let n: RTreeNode | null = this.root;
+        while (n && !n.isLeaf) {
+            const entry = n.entries[0] as RTreeEntry;
+            if (entry) {
+                n = entry.node;
+                l += 1;
+            }
         }
         return l;
     }
@@ -206,12 +227,15 @@ export class RTree {
      * @returns {number} get depth from node downward 
      * leaf node depth is zero.
     */
-    getDepthFromNode(node) {
+    getDepthFromNode(node: RTreeNode) {
         let depth = 0;
-        let n = node;
-        while (!n.isLeaf) {
-            n = n.entries[0].node;
-            depth += 1;
+        let n: RTreeNode | null = node;
+        while (n && !n.isLeaf) {
+            const entry: RTreeEntry = n.entries[0] as RTreeEntry;
+            if (entry) {
+                n = entry.node;
+                depth += 1;
+            }
         }
         return depth;
     }
@@ -221,24 +245,26 @@ export class RTree {
      * @param {RTreeEntry} entry
      * @param {number} level
      */
-    _insertEntry(entry, level) {
+    _insertEntry(entry: RTreeEntry, level: number) {
 
         let pnode = this._chooseNodeEntryIn(entry, level);
 
-        pnode.addEntry(entry); // add entry to pnode
+        if (pnode) {
+            pnode.addEntry(entry); // add entry to pnode
 
-        let lnode = null, rnode = null;
+            let lnode = null, rnode = null;
 
-        if (pnode.entries.length > this.M) { // leaf is full, split
+            if (pnode.entries.length > this.M) { // leaf is full, split
 
-            [lnode, rnode] = this._splitNode(pnode);
+                [lnode, rnode] = this._splitNode(pnode);
 
-        } else {
-            lnode = pnode;
-            rnode = null;
+            } else {
+                lnode = pnode;
+                rnode = null;
+            }
+
+            this._adjustTree(pnode, lnode, rnode);
         }
-
-        this._adjustTree(pnode, lnode, rnode);
     }
 
     /**
@@ -247,46 +273,54 @@ export class RTree {
      * @param {number} entry_level
      * @returns {RTreeNode}
      */
-    _chooseNodeEntryIn(entry, entry_level) {
+    _chooseNodeEntryIn(entry: RTreeEntry, entry_level: number): RTreeNode | null {
         if (this.root === null) {
             this.root = RTreeNode.buildRoot(this);
         }
 
         let level = 0;
-        let N = this.root;
+        let N: RTreeNode | null = this.root;
+
+        if (N === null) {
+            return null;
+        }
 
         while (level < entry_level) {
 
-            let bestEntry = null;
+            let bestEntry: RTreeEntry | null = null;
             let bestCost = Infinity;
             let bestArea = Infinity;
 
-            for (let e of N.entries) {
-                let a0 = e.mbr.area();
-                let a1 = e.mbr.merge(entry.mbr).area();
-                let cost = a1 - a0;
-                if (cost < bestCost) {
-                    bestEntry = e;
-                    bestCost = cost;
-                    bestArea = a0;
-                } else if (cost === bestCost) {
-                    if (a0 < bestArea) {
+            if (N) {
+                for (let e of N.entries) {
+
+                    let a0 = e!.mbr!.area();
+                    let a1 = e!.mbr!.merge(entry.mbr).area();
+                    let cost = a1 - a0;
+                    if (cost < bestCost) {
                         bestEntry = e;
                         bestCost = cost;
                         bestArea = a0;
+                    } else if (cost === bestCost) {
+                        if (a0 < bestArea) {
+                            bestEntry = e;
+                            bestCost = cost;
+                            bestArea = a0;
+                        }
                     }
                 }
             }
 
-            N = bestEntry.node;
-            level += 1;
-
+            if (bestEntry) {
+                N = bestEntry.node;
+                level += 1;
+            }
         }
 
         return N;
     }
 
-    insert(data, toMbrFunc = null) {
+    insert(data: any, toMbrFunc?: ToRtreeMBRFunc) {
 
         const record = new RTreeRecord(this, data, this._getDataMbr(data, toMbrFunc));
 
@@ -302,20 +336,22 @@ export class RTree {
 
         let leaf = this._chooseLeaf(entry);
 
-        leaf.addEntry(entry); // add entry to leaf
+        if (leaf) {
+            leaf.addEntry(entry); // add entry to leaf
 
-        let lnode = null, rnode = null;
+            let lnode = null, rnode = null;
 
-        if (leaf.entries.length > this.M) { // leaf is full, split
+            if (leaf.entries.length > this.M) { // leaf is full, split
 
-            [lnode, rnode] = this._splitNode(leaf);
+                [lnode, rnode] = this._splitNode(leaf);
 
-        } else {
-            lnode = leaf;
-            rnode = null;
+            } else {
+                lnode = leaf;
+                rnode = null;
+            }
+
+            this._adjustTree(leaf, lnode, rnode);
         }
-
-        this._adjustTree(leaf, lnode, rnode);
 
         this.__probe__("rtree:insert:finish", { target: this, node: leaf, entry: entry, record: record, data: data });
 
@@ -325,23 +361,27 @@ export class RTree {
      * @param {RTreeEntry} entry
      * @returns {RTreeNode} leaf node 
     */
-    _chooseLeaf(entry) {
+    _chooseLeaf(entry: RTreeEntry): RTreeNode | null {
 
         if (this.root === null) {
             this.root = RTreeNode.buildRoot(this);
         }
 
-        let N = this.root;
+        let N: RTreeNode | null = this.root;
 
-        while (!N.isLeaf) {
+        if (!N) {
+            return null;
+        }
 
-            let bestEntry = null;
+        while (N && !N.isLeaf) {
+
+            let bestEntry: RTreeEntry | null = null;
             let bestCost = Infinity;
             let bestArea = Infinity;
 
-            for (let e of N.entries) {
-                let a0 = e.mbr.area();
-                let a1 = e.mbr.merge(entry.mbr).area();
+            for (let e of N!.entries) {
+                let a0 = e!.mbr!.area();
+                let a1 = e!.mbr!.merge(entry.mbr).area();
                 let cost = a1 - a0;
                 if (cost < bestCost) {
                     bestEntry = e;
@@ -356,7 +396,7 @@ export class RTree {
                 }
             }
 
-            N = bestEntry.node;
+            N = bestEntry ? bestEntry.node : null;
 
         }
 
@@ -369,44 +409,46 @@ export class RTree {
      * @param {RTreeNode} node1
      * @param {RTreeNode|null} node2
     */
-    _adjustTree(rawnode, node1, node2) {
+    _adjustTree(rawnode: RTreeNode, node1: RTreeNode, node2: RTreeNode | null) {
 
-        let R = rawnode;
-        let P = R.parent;
-        let N1 = node1;
-        let N2 = node2;
+        let R: RTreeNode = rawnode;
+        let P: RTreeNode | null = R.parent;
+        let N1: RTreeNode = node1;
+        let N2: RTreeNode | null = node2;
 
         while (R !== this.root) {
 
             if (N2 !== null) {
-                N2.parent = N1.parent;
+                N2.parent = N1!.parent;
                 const e1 = RTreeEntry.buildFromNode(N1);
                 const e2 = RTreeEntry.buildFromNode(N2);
-                P.entries = P.entries.filter(e => e.node !== R); // remove old entry
-                P.addEntry(e1); // add new entry
-                P.addEntry(e2); // add new entry
-                if (N2.parent.entries.length > this.M) {
-                    R = R.parent;
-                    P = R.parent;
+                P!.entries = P!.entries.filter(e => e!.node !== R); // remove old entry
+                P!.addEntry(e1); // add new entry
+                P!.addEntry(e2); // add new entry
+
+                if (N2 && N2.parent && N2.parent.entries.length > this.M) {
+                    R = R!.parent as RTreeNode;
+                    P = R!.parent;
                     [N1, N2] = this._splitNode(N2.parent);
                 } else {
-                    R = R.parent;
-                    P = R.parent;
+                    R = R!.parent as RTreeNode;
+                    P = R!.parent;
                     N1 = R;
                     N2 = null;
                 }
             } else {
 
-                N1.entry.refreshMBR();
 
-                R = N1.parent;
-                P = R.parent;
+                N1!.entry!.refreshMBR();
+
+                R = N1!.parent as RTreeNode;
+                P = R!.parent;
                 N1 = R;
                 N2 = null;
             }
         }
 
-        if (R === this.root && N2 !== null) { // has propagated to root
+        if (R === this.root && N1 !== null && N2 !== null) { // has propagated to root
             const newRoot = RTreeNode.buildRoot(this);
             newRoot.parent = null;
             newRoot.isLeaf = false;
@@ -423,7 +465,7 @@ export class RTree {
      * @param {RTreeNode} node
      * @param {RTreeEntry} entry  
     */
-    _removeEntryFromNode(node, entry) {
+    _removeEntryFromNode(node: RTreeNode, entry: RTreeEntry) {
         node.entries.splice(node.entries.indexOf(entry), 1);
     }
 
@@ -432,11 +474,17 @@ export class RTree {
      * @param {ToRtreeMBRFunc} [toMbrFunc=null]
      * @returns {void}
     */
-    delete(data, toMbrFunc = null) {
+    delete(data: any, toMbrFunc?: ToRtreeMBRFunc) {
 
         this.__probe__("rtree:delete:start", { target: this, data: data });
 
-        const [leaf, entry] = this._findLeaf(data, this._getDataMbr(data, toMbrFunc));
+        const mbr = this._getDataMbr(data, toMbrFunc);
+
+        if (!mbr) {
+            return;
+        }
+
+        const [leaf, entry] = this._findLeaf(data, mbr);
         if (leaf === null || entry === null) {
             return;
         }
@@ -444,10 +492,10 @@ export class RTree {
         this._removeEntryFromNode(leaf, entry);
         this._condenseTree(leaf);
 
-        if (this.root.entries.length === 1 && !this.root.isLeaf) {
-            const newRoot = this.root.entries[0].node;
-            newRoot.parent = null;
-            newRoot.entry = null;
+        if (this.root && this.root.entries.length === 1 && !this.root.isLeaf) {
+            const newRoot = this.root.entries[0]!.node;
+            newRoot!.parent = null;
+            newRoot!.entry = null;
             this.root = newRoot;
         }
 
@@ -459,21 +507,23 @@ export class RTree {
      * @param {RTreeMBR} mbr 
      * @returns {[RTreeNode,RTreeEntry]} 
     */
-    _findLeaf(data, mbr) {
+    _findLeaf(data: any, mbr: RTreeMBR): [RTreeNode | null, RTreeEntry | null] {
 
-        const nodes = []; //stack of nodes
-        nodes.push(this.root);
+        const nodes: RTreeNode[] = []; //stack of nodes
+        if (this.root) {
+            nodes.push(this.root);
+        }
         while (nodes.length > 0) {
-            const node = nodes.pop();
-            if (!node.isLeaf) {
-                for (let e of node.entries) {
-                    if (mbr.overlap(e.mbr)) {
-                        nodes.push(e.node);
+            const node = nodes.pop() as RTreeNode;
+            if (!node!.isLeaf) {
+                for (let e of node!.entries) {
+                    if (mbr.overlap(e!.mbr as RTreeMBR)) {
+                        nodes.push(e!.node as RTreeNode);
                     }
                 }
             } else {
-                for (let e of node.entries) {
-                    if (e.record.data === data) { //here check geom is equal
+                for (let e of node!.entries) {
+                    if (e!.record!.data === data) { //here check geom is equal
                         return [node, e];
                     }
                 }
@@ -486,7 +536,7 @@ export class RTree {
      * @param {RTreeNode} node
      * @returns {number}
      */
-    _getEntryInsertLevelByNode(node) {
+    _getEntryInsertLevelByNode(node: RTreeNode) {
         const level = this.getLeafLevel();
         const depth = this.getDepthFromNode(node);
         return level - depth;
@@ -496,15 +546,15 @@ export class RTree {
      * @param {RTreeNode} node the node need condense 
      * @returns {void}
     */
-    _condenseTree(node) {
+    _condenseTree(node: RTreeNode) {
 
         const q = [];
-        let n = node;
+        let n: RTreeNode = node;
 
         while (n != this.root) { // if n is not root node
 
-            const p = n.parent;
-            const e = n.entry;
+            const p = n.parent as RTreeNode;
+            const e = n.entry as RTreeEntry;
 
             if (n.entries.length < this.m) { // need delete node n and delete entry e of n  
 
@@ -515,14 +565,14 @@ export class RTree {
                 e.refreshMBR();
             }
 
-            n = n.parent; //move upward
+            n = n.parent as RTreeNode; //move upward
         }
 
         // here n is already root node. reinsert
         for (let n of q) {
             const level = this._getEntryInsertLevelByNode(n);
-            for (let e of n.entries) {
-                this._insertEntry(e, level);
+            for (let e of n!.entries) {
+                this._insertEntry(e as RTreeEntry, level);
             }
         }
     }
@@ -532,7 +582,7 @@ export class RTree {
      * @param {RTreeNode} node 
      * @returns {[RTreeNode,RTreeNode]} return two nodes
     */
-    _splitNode(node) {
+    _splitNode(node: RTreeNode): [RTreeNode, RTreeNode] {
         const lnode = RTreeNode.buildEmptyNode(this);
         lnode.parent = node.parent;
         lnode.entry = node.entry;
@@ -550,10 +600,15 @@ export class RTree {
         //assign the parent of entries' node to new node
         if (!lnode.isLeaf) {
             for (let e of lnode.entries) {
-                e.node.parent = lnode;
+                if (e!.node) {
+                    e!.node.parent = lnode;
+                }
+
             }
             for (let e of rnode.entries) {
-                e.node.parent = rnode;
+                if (e!.node) {
+                    e!.node.parent = rnode;
+                }
             }
         }
 
@@ -567,7 +622,7 @@ export class RTree {
      * @param {RTreeNode} rnode the new right node 
      * @returns {void} 
     */
-    _randomSplit(node, lnode, rnode) {
+    _randomSplit(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode) {
 
         lnode.entries = [...node.entries.slice(0, this.m)];
         rnode.entries = [...node.entries.slice(this.m)];
@@ -580,8 +635,8 @@ export class RTree {
      * @param {number} idx
      * move the idx-th entry of node1 to node2, and remove this entry from node1   
     */
-    _moveEntryToNode(fromNode, toNode, idx) {
-        toNode.entries.push(fromNode.entries[idx]);
+    _moveEntryToNode(fromNode: RTreeNode, toNode: RTreeNode, idx: number) {
+        toNode.entries.push(fromNode.entries[idx] as RTreeEntry);
         fromNode.entries[idx] = null; // soft remove
     }
 
@@ -589,14 +644,14 @@ export class RTree {
      * @param {RTreeNode} node
      * @returns {RTreeMBR}
      */
-    _computeNodeMbr(node) {
+    _computeNodeMbr(node: RTreeNode) {
         if (node === null || node.entries.length === 0) {
             return null;
         }
-        const mbr = node.entries[0].mbr.clone();
+        const mbr = node.entries[0]!.mbr!.clone();
         for (let i = 1; i < node.entries.length; ++i) {
             if (node.entries[i]) {
-                mbr.addMbrInplace(node.entries[i].mbr);
+                mbr.addMbrInplace(node.entries[i]!.mbr as RTreeMBR);
             }
 
         }
@@ -613,7 +668,7 @@ export class RTree {
      * @param {PickSeedsFuncType} pickSeedsFunc    
      * @param {PickNextFuncType} pickNextFunc 
     */
-    _splitFramework(node, lnode, rnode, pickSeedsFunc, pickNextFunc) {
+    _splitFramework(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode, pickSeedsFunc: PickSeedsFuncType, pickNextFunc: PickNextFuncType) {
         let tot = node.entries.length;
         let cnt = 0;
         let lcnt = 0;
@@ -640,7 +695,7 @@ export class RTree {
                 return;
             }
 
-            const [idx, target] = pickNextFunc(node, lnode, rnode, lmbr, rmbr);
+            const [idx, target] = pickNextFunc(node, lnode, rnode, lmbr as RTreeMBR, rmbr as RTreeMBR);
             this._moveEntryToNode(node, target, idx);
             cnt++;
             if (target === lnode) {
@@ -659,8 +714,8 @@ export class RTree {
      * @param {RTreeNode} rnode the new right node 
      * @returns {void} 
     */
-    _quadtaticSplit(node, lnode, rnode) {
-        return this._splitFramework(node, lnode, rnode, this._quadtaticPickSeeds.bind(this), this._pickNext_minExpandArea.bind(this));
+    _quadtaticSplit(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode) {
+        this._splitFramework(node, lnode, rnode, this._quadtaticPickSeeds.bind(this), this._pickNext_minExpandArea.bind(this));
     }
 
     /**
@@ -669,8 +724,8 @@ export class RTree {
      * @param {RTreeNode} rnode the new right node 
      * @returns {void} 
     */
-    _linearSplit(node, lnode, rnode) {
-        return this._splitFramework(node, lnode, rnode, this._linearPickSeeds.bind(this), this._pickNext_minExpandArea.bind(this));
+    _linearSplit(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode) {
+        this._splitFramework(node, lnode, rnode, this._linearPickSeeds.bind(this), this._pickNext_minExpandArea.bind(this));
     }
 
     /**
@@ -679,14 +734,14 @@ export class RTree {
      * @param {RTreeNode} rnode the new right node 
      * @returns {void} 
     */
-    _doubleSortSplit(node, lnode, rnode) {
+    _doubleSortSplit(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode) {
         //TODO
     }
 
     /**
      * @type {PickSeedsFuncType}
      */
-    _quadtaticPickSeeds(node) {
+    _quadtaticPickSeeds(node: RTreeNode): [number, number] {
         let maxd = -1;
         let idx1 = -1;
         let idx2 = -1;
@@ -695,7 +750,7 @@ export class RTree {
             for (let j = i + 1; j < node.entries.length; ++j) {
                 const e1 = node.entries[i];
                 const e2 = node.entries[j];
-                const d = e1.mbr.merge(e2.mbr).area() - e1.mbr.area() - e2.mbr.area();
+                const d = e1!.mbr!.merge(e2!.mbr).area() - e1!.mbr!.area() - e2!.mbr!.area();
                 if (d > maxd) {
                     maxd = d;
                     idx1 = i;
@@ -709,7 +764,7 @@ export class RTree {
     /**
      * @type {PickSeedsFuncType}
      */
-    _linearPickSeeds(node) {
+    _linearPickSeeds(node: RTreeNode): [number, number] {
 
         let x_maxLow = -Infinity;
         let x_minHigh = Infinity;
@@ -727,33 +782,33 @@ export class RTree {
 
         for (let i = 0; i < node.entries.length; ++i) {
             const e = node.entries[i];
-            if (e.mbr.xmin > x_maxLow) {
-                x_maxLow = e.mbr.xmin;
+            if (e!.mbr!.xmin > x_maxLow) {
+                x_maxLow = e!.mbr!.xmin;
                 x_maxLow_eidx = i;
             }
-            if (e.mbr.xmax < x_minHigh) {
-                x_minHigh = e.mbr.xmax;
+            if (e!.mbr!.xmax < x_minHigh) {
+                x_minHigh = e!.mbr!.xmax;
                 x_minHigh_eidx = i;
             }
-            if (e.mbr.xmin < x_minLow) {
-                x_maxLow = e.mbr.xmin;
+            if (e!.mbr!.xmin < x_minLow) {
+                x_maxLow = e!.mbr!.xmin;
             }
-            if (e.mbr.xmax > x_maxHigh) {
-                x_maxHigh = e.mbr.xmax;
+            if (e!.mbr!.xmax > x_maxHigh) {
+                x_maxHigh = e!.mbr!.xmax;
             }
-            if (e.mbr.ymin > y_maxLow) {
-                y_maxLow = e.mbr.ymin;
+            if (e!.mbr!.ymin > y_maxLow) {
+                y_maxLow = e!.mbr!.ymin;
                 y_maxLow_eidx = i;
             }
-            if (e.mbr.ymax < y_minHigh) {
-                y_minHigh = e.mbr.ymax;
+            if (e!.mbr!.ymax < y_minHigh) {
+                y_minHigh = e!.mbr!.ymax;
                 y_minHigh_eidx = i;
             }
-            if (e.mbr.ymin < y_minLow) {
-                y_maxLow = e.mbr.ymin;
+            if (e!.mbr!.ymin < y_minLow) {
+                y_maxLow = e!.mbr!.ymin;
             }
-            if (e.mbr.ymax > y_maxHigh) {
-                y_maxHigh = e.mbr.ymax;
+            if (e!.mbr!.ymax > y_maxHigh) {
+                y_maxHigh = e!.mbr!.ymax;
             }
         }
 
@@ -771,7 +826,7 @@ export class RTree {
      *
      * @type {PickNextFuncType}
      */
-    _pickNext_minExpandArea(node, lnode, rnode, lmbr, rmbr) {
+    _pickNext_minExpandArea(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode, lmbr: RTreeMBR, rmbr: RTreeMBR): [number, RTreeNode] {
         let maxd = -1;
         let idx = -1;
         let target = null;
@@ -780,8 +835,8 @@ export class RTree {
             if (e === null) {
                 continue;
             }
-            const d1 = lmbr.merge(e.mbr).area() - lmbr.area();
-            const d2 = rmbr.merge(e.mbr).area() - rmbr.area();
+            const d1 = lmbr.merge(e!.mbr).area() - lmbr.area();
+            const d2 = rmbr.merge(e!.mbr).area() - rmbr.area();
             const d = Math.abs(d1 - d2);
             if (d > maxd) {
                 maxd = d;
@@ -801,7 +856,7 @@ export class RTree {
             }
 
         }
-        return [idx, target];
+        return [idx, target as RTreeNode];
     }
 
     /**
@@ -809,36 +864,40 @@ export class RTree {
      * @param {(RTreeEntry, RTreeMBR)=>boolean} check_func check the entry and the mbr is matched
      * @returns {RTreeEntry[]}
     */
-    search(mbr, check_func) {
+    search(mbr: RTreeMBR, check_func: RTreeSearchCheckFuncType): RTreeEntry[] {
 
         const nodes = [];
         const res_entries = [];
 
+        if (!this.root) {
+            return [];
+        }
+
         nodes.push(this.root);
 
         while (nodes.length > 0) {
-            const node = nodes.shift();
+            const node = nodes.shift() as RTreeNode;
 
             this.__probe__("rtree:search:path", { target: this, node: node, entry: null });
 
             if (node.isLeaf) {
                 for (let e of node.entries) {
-                    if (check_func(e, mbr)) {
+                    if (check_func(e as RTreeEntry, mbr)) {
                         this.__probe__("rtree:search:path", { target: this, node: node, entry: e });
                         res_entries.push(e);
                     }
                 }
             } else {
                 for (let e of node.entries) {
-                    if (check_func(e, mbr)) {
+                    if (check_func(e as RTreeEntry, mbr)) {
                         this.__probe__("rtree:search:path", { target: this, node: node, entry: e });
-                        nodes.push(e.node);
+                        nodes.push(e!.node);
                     }
                 }
             }
         }
 
-        return res_entries;
+        return res_entries as RTreeEntry[];
     };
 
 
@@ -846,10 +905,10 @@ export class RTree {
      * @param {RTreeMBR} mbr
      * @returns {RTreeEntry[]}
     */
-    search_overlap(mbr) {
+    search_overlap(mbr: RTreeMBR): RTreeEntry[] {
         this.__probe__("rtree:search_overlap:start", { target: this, mbr });
         const result = this.search(mbr, (entry, mbr) => {
-            return entry.mbr.overlap(mbr);
+            return entry!.mbr!.overlap(mbr);
         });
         this.__probe__("rtree:search_overlap:finish", { target: this, mbr: mbr, result: result });
         return result;
@@ -873,45 +932,40 @@ export class RTree {
 
 };
 
-/**
- *
- */
 export class RTreeNode {
 
     /**@type {RTree}*/
-    tree = null;
+    tree: RTree | null = null;
 
     /**@type {string}*/
-    _id = null;
+    _id: number | null = null;
 
     /**
      * @type {RTreeNode|null}
      * parent node of this.
     */
-    parent = null;
+    parent: RTreeNode | null = null;
 
     /**
      * @type {RTreeEntry|null}
      * this entry point to this in parent node
     */
-    entry = null;
+    entry: RTreeEntry | null = null;
 
     /**@type {boolean}*/
-    isLeaf = false;
+    isLeaf: boolean = false;
 
     /**
      * @type {RTreeEntry[]}
     */
-    entries = [];
-
-    static counter = 0;
+    entries: (RTreeEntry | null)[] = [];
 
     /**
      * @static
      * @param {RTree} tree 
      * @returns {RTreeNode}
     */
-    static buildRoot(tree) {
+    static buildRoot(tree: RTree) {
         const root = new RTreeNode();
         root.tree = tree;
         root.parent = null;
@@ -922,6 +976,9 @@ export class RTreeNode {
     }
 
     get id() {
+        if (!this.tree) {
+            return -1;
+        }
         if (this._id === null) {
             this._id = this.tree._idGenerator.genNodeId();
         }
@@ -932,7 +989,7 @@ export class RTreeNode {
      * @param {RTree} tree 
      * @returns {RTreeNode}
      */
-    static buildEmptyNode(tree) {
+    static buildEmptyNode(tree: RTree): RTreeNode {
         const node = new RTreeNode();
         node.tree = tree;
         node.parent = null;
@@ -945,65 +1002,48 @@ export class RTreeNode {
     /**
      * @param {RTreeEntry} entry
      */
-    addEntry(entry) {
+    addEntry(entry: RTreeEntry) {
 
         this.entries.push(entry);
         this.isLeaf = entry.isLeaf;
-        if (!entry.isLeaf) {
+        if (!entry.isLeaf && entry.node) {
             entry.node.parent = this;
         }
 
     }
 
-    /**
-     * @param {RTreeNode} node
-     */
-    setParent(node) {
-        this.parent = node;
-    }
-
-    /**
-     * @returns {RTreeNode}
-     */
-    getParent() {
-        return this.parent;
-    }
-
 }
 
-/**
- *
- */
 export class RTreeEntry {
 
     /**@type {RTree}*/
-    tree = null;
+    tree: RTree | null = null;
 
     /**@type {number}*/
-    _id = null;
+    _id: number | null = null;
 
     /**
      * @type {RTreeMBR}
      * mbr of this entry
     */
-    mbr = null;
+    mbr: RTreeMBR | null = null;
     /**
      * @type {boolean}
      * is leaf entry.
     */
-    isLeaf = false;
+    isLeaf: boolean = false;
     /**
      * @type {RTreeNode}
      * if not leaf entry, node is child node that the entry point
     */
-    node = null;
+    node: RTreeNode | null = null;
     /**
      * @type {Geometry}
      * if leaf entry, record is not null
     */
-    record = null;
+    record: RTreeRecord | null = null;
 
-    static buildFromRecord(record) {
+    static buildFromRecord(record: RTreeRecord): RTreeEntry {
         const entry = new RTreeEntry();
         entry.tree = record.tree;
         entry.mbr = record.mbr;
@@ -1018,7 +1058,7 @@ export class RTreeEntry {
      * @param {RTreeNode} node
      * @returns {RTreeEntry}
      */
-    static buildFromNode(node) {
+    static buildFromNode(node: RTreeNode): RTreeEntry {
         const entry = new RTreeEntry();
         entry.tree = node.tree;
         entry.isLeaf = false;
@@ -1029,27 +1069,32 @@ export class RTreeEntry {
     }
 
     get id() {
+        if (!this.tree) {
+            return -1;
+        }
         if (this._id === null) {
             this._id = this.tree._idGenerator.genEntryId();
         }
         return this._id;
     }
 
-    /**
-     *
-     */
     refreshMBR() {
 
-        if (this.isLeaf) {
+        if (this.isLeaf && this.record) {
             this.mbr = this.record.mbr;
         } else {
-            let mbr = this.node.entries[0].mbr;
-            for (let i = 1; i < this.node.entries.length; ++i) {
-                mbr = mbr.merge(this.node.entries[i].mbr);
-            }
-            this.mbr = mbr;
-        }
+            if (this.node && this.node.entries.length > 0) {
+                let entry = this.node.entries[0];
+                if (entry) {
+                    let mbr = entry.mbr;
+                    for (let i = 1; i < this.node.entries.length; ++i) {
+                        mbr = mbr!.merge(this.node.entries[i]!.mbr as RTreeMBR);
+                    }
+                    this.mbr = mbr;
+                }
 
+            }
+        }
     }
 };
 
@@ -1062,26 +1107,30 @@ export class RTreeEntry {
 */
 export class RTreeRecord {
 
-    tree = null;
+
+    tree: RTree | null = null;
     /**@type {number}*/
-    _id = null;
+    _id: number | null = null;
     /**@type {RTreeMBR}*/
-    mbr = null;
+    mbr: RTreeMBR | null = null;
     /**@type {T}*/
-    data = null;
+    data: object | null = null;
 
     /**
      * @constructor
      * @param {T} data
      * @param {RTreeMBR} mbr
     */
-    constructor(tree, data, mbr) {
+    constructor(tree: RTree, data: object, mbr: RTreeMBR | null) {
         this.tree = tree;
         this.data = data;
         this.mbr = mbr;
     }
 
     get id() {
+        if (!this.tree) {
+            return -1;
+        }
         if (this._id === null) {
             this._id = this.tree._idGenerator.genRecordId();
         }

@@ -4,11 +4,11 @@
  * @param {number} b
  * @returns {number}
  */
-export function randomFloat(a, b) {
+export function randomFloat(a: number, b: number): number {
     return Math.random() * (b - a) + a;
 }
 
-export function sleep(ms) {
+export function sleep(ms: number): Promise<number> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -16,9 +16,9 @@ export class IDGenerator {
 
     //TODO thread-safe
 
-    counter = 0;
+    counter: number = 0;
 
-    genId() {
+    genId(): number {
         const id = this.counter;
         if (this.counter === Number.MAX_SAFE_INTEGER) {
             this.counter = 0;

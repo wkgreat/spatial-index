@@ -1,4 +1,4 @@
-import { RTree } from "../src/rtree/rtree.js"
+import { RTree, RTreeMBR } from "../src/rtree/rtree.js"
 
 describe('rtree', () => {
 

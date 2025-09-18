@@ -1,14 +1,17 @@
 import { glob } from 'glob'
 import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+import commonjs from '@rollup/plugin-commonjs';
+import dts from "rollup-plugin-dts";
 
-const entries = glob.sync('src/**/*.js');
+const entries = glob.sync('src/**/*.ts');
 
 export default [
     // mjs
     {
         input: entries,
         output: {
-            dir: "dist/spatial-index/esm",
+            dir: "dist/esm",
             format: 'esm',
             preserveModules: true,
             preserveModulesRoot: 'src',
@@ -16,21 +19,33 @@ export default [
             sourcemap: true
         },
         plugins: [
-            resolve()
+            resolve(), typescript({
+                tsconfig: "./tsconfig.json",
+                declaration: false,
+                declarationMap: false,
+                emitDeclarationOnly: false,
+                declarationDir: null
+            }), commonjs()
         ],
         external: ['cytoscape']
     },
     {
-        input: 'src/index.js',
+        input: 'src/index.ts',
         output: {
-            dir: 'dist/spatial-index/cjs',
+            dir: 'dist/cjs',
             format: 'cjs',
             sourcemap: true,
             preserveModules: true,
             preserveModulesRoot: 'src',
             exports: 'named',
         },
-        plugins: [resolve()],
+        plugins: [resolve(), typescript({
+            tsconfig: "./tsconfig.json",
+            declaration: false,
+            declarationMap: false,
+            emitDeclarationOnly: false,
+            declarationDir: null
+        }), commonjs()],
         external: ['cytoscape'],
-    },
+    }
 ];

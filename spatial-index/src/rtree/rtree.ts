@@ -643,6 +643,9 @@ export class RTree {
      * move the idx-th entry of node1 to node2, and remove this entry from node1   
     */
     _moveEntryToNode(fromNode: RTreeNode, toNode: RTreeNode, idx: number) {
+        if (fromNode.entries[idx] === null) {
+            console.error("entry is NULL!");
+        }
         toNode.entries.push(fromNode.entries[idx] as RTreeEntry);
         fromNode.entries[idx] = null; // soft remove
     }
@@ -683,6 +686,9 @@ export class RTree {
         let lmbr = null;
         let rmbr = null;
         const [idx1, idx2] = pickSeedsFunc(node);
+        if (idx1 === idx2) {
+            console.error("idx1===idx2");
+        }
         this._moveEntryToNode(node, lnode, idx1);
         cnt++;
         lcnt++;
@@ -798,7 +804,7 @@ export class RTree {
                 x_minHigh_eidx = i;
             }
             if (e!.mbr!.xmin < x_minLow) {
-                x_maxLow = e!.mbr!.xmin;
+                x_minLow = e!.mbr!.xmin;
             }
             if (e!.mbr!.xmax > x_maxHigh) {
                 x_maxHigh = e!.mbr!.xmax;
@@ -812,7 +818,7 @@ export class RTree {
                 y_minHigh_eidx = i;
             }
             if (e!.mbr!.ymin < y_minLow) {
-                y_maxLow = e!.mbr!.ymin;
+                y_minLow = e!.mbr!.ymin;
             }
             if (e!.mbr!.ymax > y_maxHigh) {
                 y_maxHigh = e!.mbr!.ymax;

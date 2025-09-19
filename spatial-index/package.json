@@ -12,7 +12,10 @@
   "files": [
     "dist"
   ],
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/jsts": "^0.17.24",
+    "jsts": "^2.12.1"
+  },
   "scripts": {
     "build:types": "npx tsc --emitDeclarationOnly",
     "build": "yarn run build:types && rollup -c",
@@ -20,8 +23,8 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "lint:strict": "eslint src --max-warnings=0",
-    "test": "jest test",
-    "test:watch": "jest test --watch"
+    "test": "jest --runInBand --no-watchman",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "cytoscape": "^3.33.1"

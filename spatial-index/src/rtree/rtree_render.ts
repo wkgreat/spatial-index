@@ -79,9 +79,13 @@ class RTreeStateMachine {
 
 }
 
-/**
- *
- */
+
+interface RTreeRenderOptions {
+    rtree: RTree;
+    graph_div_id: string;
+    canvas_div_id: string;
+}
+
 export class RTreeRender extends Probe {
 
     //TODO set graph element and canvas element
@@ -107,8 +111,11 @@ export class RTreeRender extends Probe {
         name: 'cose'
     }
 
+    graph_div_id = "";
+    canvas_div_id = "";
+
     data = {
-        container: document.getElementById('graph-div'),
+        container: document.getElementById(''),
         elements: [],
         style: [
             {
@@ -145,22 +152,23 @@ export class RTreeRender extends Probe {
      * @constructor
      * @param {RTree} rtree
      */
-    constructor(rtree: RTree) {
+    constructor(options: RTreeRenderOptions) {
 
         super();
 
-        this.rtree = rtree;
+        this.rtree = options.rtree;
+        this.graph_div_id = options.graph_div_id;
+        this.canvas_div_id = options.canvas_div_id;
+        this.data.container = document.getElementById(options.graph_div_id);
+
         this.rtree.setProbe(this);
         this.initGraph();
-        const that = this;
         this.addTrigger("rtree:insert:finish", this.probeRtreeInsertFinish.bind(this));
         this.addTrigger("rtree:search_overlap:start", this.probeRtreeSearchOverlapStart.bind(this));
         this.addTrigger("rtree:search:path", this.probeRtreeSearchPath.bind(this));
         this.addTrigger("rtree:search_overlap:finish", this.probeRtreeSearchOverlapFinish.bind(this));
         this.addTrigger("rtree:delete:finish", this.probeRtreeDeleteFinish.bind(this));
         this.addTrigger("rtree:clear:finish", this.probeRtreeClearFinish.bind(this));
-
-
     }
 
     initGraph() {
@@ -712,7 +720,7 @@ export class RTreeRender extends Probe {
 
         //TODO revert y coordinate.
 
-        const canvas = document.getElementById("rtree-canvas") as HTMLCanvasElement;
+        const canvas = document.getElementById(this.canvas_div_id) as HTMLCanvasElement;
         if (!canvas) {
             console.error("canvas is null!");
             return (x, y) => [0, 0];
@@ -773,7 +781,7 @@ export class RTreeRender extends Probe {
             ctx.strokeRect(x, y, w, h);
         }
 
-        const canvas = document.getElementById("rtree-canvas") as HTMLCanvasElement | null;
+        const canvas = document.getElementById(this.canvas_div_id) as HTMLCanvasElement | null;
         if (canvas === null) {
             console.error("canvas is null!");
             return;

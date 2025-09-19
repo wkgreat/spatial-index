@@ -11,11 +11,11 @@
     "demos"
   ],
   "scripts": {
-    "build:spatial-index": "yarn workspace spatial-index run build",
+    "build:spatial-index": "yarn workspace spatial-index-js run build",
     "build:demo": "yarn workspace spatial-index-demos run build",
     "start:demo": "yarn run build && yarn workspace spatial-index-demos start",
     "build": "yarn run build:spatial-index && yarn run build:demo",
-    "test": "yarn workspace spatial-index run test",
+    "test": "yarn workspace spatial-index-js run test",
     "deploy": "yarn workspace spatial-index-demos run deploy"
   },
   "devDependencies": {

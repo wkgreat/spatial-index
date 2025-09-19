@@ -80,8 +80,14 @@ export class RTreeDemo {
      * @constructor
     */
     constructor() {
+        const graph_div_id = "graph-div";
+        const canvas_div_id = "rtree-canvas";
         this._rtree = new RTree(this._m, this._M);
-        this._render = new RTreeRender(this._rtree);
+        this._render = new RTreeRender({
+            rtree: this._rtree,
+            graph_div_id: graph_div_id,
+            canvas_div_id: canvas_div_id
+        });
         this._render.setDataExtent(this._world_extent);
     }
 

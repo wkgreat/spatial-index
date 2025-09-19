@@ -86,7 +86,8 @@ body {
     height: 300px;
     width: 300px;
     padding: 10px;
-    background-color: rgb(255, 255, 255);
+    background-color: rgba(1, 255, 200, 0.1);
+    border: 5px solid rgba(1, 255, 200, 0.2);
 }
 
 #rtree-canvas {

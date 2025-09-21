@@ -1,6 +1,56 @@
 import './rtree.css';
-import { Geometry, RTree, RTreeEntry } from "../rtree/rtree";
-import { RTreeRender } from "../rtree/rtree_render";
+import { RTree, RTreeEntry, RTreeMBR } from "../spatial-index/dist/esm/rtree/rtree.js";
+import { RTreeRender } from "../spatial-index/dist/esm/rtree/rtree_render.js";
+import { randomFloat, sleep } from '../spatial-index/dist/esm/utils/utils.js';
+
+/**
+ * @class Geometry
+ * @todo This is geometry class for R-tree test. Only contains mbr without shape data now.
+ * 
+*/
+export class Geometry {
+
+    /** @type {number} */
+    id = 0;
+
+    /** @type {RTreeMBR} */
+    mbr = null;
+
+    static counter = 0;
+
+    /**
+     * @static
+     * @param {[number,number,number,number]} ext
+     * @param {number} wmin
+     * @param {number} hmin
+     * @param {number} wmax
+     * @param {number} hmax
+     * @returns {Geometry}
+     */
+    static buildRandom(ext, wmin, hmin, wmax, hmax) {
+        const [xmin, ymin, xmax, ymax] = ext;
+        let x0 = randomFloat(xmin, xmax);
+        let y0 = randomFloat(ymin, ymax);
+        let x1 = Math.min(x0 + randomFloat(wmin, wmax), xmax);
+        let y1 = Math.min(y0 + randomFloat(hmin, hmax), ymax);
+        const g = new Geometry();
+        g.id = Geometry.counter++;
+        g.mbr = new RTreeMBR(x0, y0, x1, y1);
+        return g;
+    }
+
+    /**
+     * @static
+     * @param {RTreeMBR} mbr
+     * @returns {Geometry}
+     */
+    static buildFromMbr(mbr) {
+        const g = new Geometry();
+        g.id = Geometry.counter++;
+        g.mbr = mbr;
+        return g;
+    }
+};
 
 export class RTreeDemo {
 
@@ -30,8 +80,14 @@ export class RTreeDemo {
      * @constructor
     */
     constructor() {
+        const graph_div_id = "graph-div";
+        const canvas_div_id = "rtree-canvas";
         this._rtree = new RTree(this._m, this._M);
-        this._render = new RTreeRender(this._rtree);
+        this._render = new RTreeRender({
+            rtree: this._rtree,
+            graph_div_id: graph_div_id,
+            canvas_div_id: canvas_div_id
+        });
         this._render.setDataExtent(this._world_extent);
     }
 
@@ -45,7 +101,7 @@ export class RTreeDemo {
      * @param {number} [n=20]
      * @returns {void} 
     */
-    insertRandomGeometries(n = 20) {
+    async insertRandomGeometries(n = 20) {
         for (let i = 0; i < n; ++i) {
             this.insertGeometry(Geometry.buildRandom(
                 this._world_extent,
@@ -54,6 +110,7 @@ export class RTreeDemo {
                 this._geom_random_max_width,
                 this._geom_random_max_height
             ));
+            await sleep(100);
         }
     }
 
@@ -68,7 +125,7 @@ export class RTreeDemo {
      * @returns {null}
     */
     insertGeometry(geom) {
-        this._rtree.insert(geom);
+        this._rtree.insert(geom, (g) => g.mbr);
         this._insertedGeometries.push(geom);
         this._render.render();
     }
@@ -77,7 +134,7 @@ export class RTreeDemo {
         if (this._insertedGeometries.length > 0) {
             const randomIndex = Math.floor(Math.random() * this._insertedGeometries.length);
             const geom = this._insertedGeometries[randomIndex];
-            this._rtree.delete(geom);
+            this._rtree.delete(geom, (g) => g.mbr);
             this._insertedGeometries.splice(randomIndex, 1);
         }
 

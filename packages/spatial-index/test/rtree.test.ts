@@ -130,4 +130,6 @@ describe("rtree_with_jsts", () => {
 
     });
 
+    // TODO search test
+
 });

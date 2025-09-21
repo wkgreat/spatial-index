@@ -1,7 +1,7 @@
 import './rtree.css';
-import { RTree, RTreeEntry, RTreeMBR } from "../spatial-index/dist/esm/rtree/rtree.js";
-import { RTreeRender } from "../spatial-index/dist/esm/rtree/rtree_render.js";
-import { randomFloat, sleep } from '../spatial-index/dist/esm/utils/utils.js';
+import { RTree, RTreeEntry, RTreeMBR } from "spatial-index-js/rtree";
+import { RTreeRender } from "spatial-index-js/rtree_render";
+import { randomFloat, sleep } from 'spatial-index-js/utils';
 
 /**
  * @class Geometry

@@ -10,9 +10,9 @@
             "request": "launch",
             "args": [
                 "--config",
-                "${workspaceFolder}/spatial-index/jest.config.cjs"
+                "${workspaceFolder}/packages/spatial-index/jest.config.cjs"
             ],
-            "cwd": "${workspaceFolder}/spatial-index",
+            "cwd": "${workspaceFolder}/packages/spatial-index",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "disableOptimisticBPs": true,
@@ -27,6 +27,15 @@
                 "${workspaceFolder}/**",
                 "**/node_modules/jsts/**",
             ]
+        },
+        {
+            "name": "benchmark",
+            "type": "node",
+            "request": "launch",
+            "program": "rtree_benchmark.js", // 当前打开的文件
+            "cwd": "${workspaceFolder}/packages/benchmark",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
         }
     ]
 }

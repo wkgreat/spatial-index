@@ -5,6 +5,8 @@ module.exports = {
 
     preset: "ts-jest",
 
+    testEnvironment: 'node',
+
     roots: ['<rootDir>/test'],
 
     transform: {
@@ -25,7 +27,7 @@ module.exports = {
     ],
 
     moduleNameMapper: {
-        'jsts': [
+        '^jsts$': [
             'jsts/dist/jsts.min.js',
             'jsts/dist/jsts.js',
         ]

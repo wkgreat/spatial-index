@@ -1,6 +1,7 @@
 import { RTree, RTreeMBR } from "../src/rtree/rtree";
 import { randomFloat } from "../src/utils/utils";
 import { geom } from 'jsts';
+import { BoxSize, randomPolygon, randomPolygons } from "./jsts_utils";
 
 function randomMbrinMbr(mbr: RTreeMBR) {
 
@@ -72,64 +73,40 @@ describe('rtree', () => {
 
 });
 
-const geomFactory = new geom.GeometryFactory();
-
-function generatorRandomPolygonInBox(box: geom.Envelope) {
-    const points: geom.Point[] = [];
-    for (let i = 0; i < 10; i++) {
-        const x = randomFloat(box.getMinX(), box.getMaxX());
-        const y = randomFloat(box.getMinY(), box.getMaxY());
-        const c = new geom.Coordinate(x, y);
-        const p = geomFactory.createPoint(c);
-        points.push(p);
-    }
-    const multipoint = geomFactory.createMultiPoint(points);
-    return multipoint.convexHull();
-}
-
-function randomEnvelopeInEnvelope(box: geom.Envelope, hmax: number, wmax: number) {
-
-    const x = randomFloat(box.getMinX(), box.getMaxX());
-    const y = randomFloat(box.getMinY(), box.getMaxY());
-    const h = randomFloat(0, hmax);
-    const w = randomFloat(0, wmax);
-    const b = new geom.Envelope(x, x + w, y, y + h);
-    return b;
-}
-
-function randomPolygon(worldBox: geom.Envelope) {
-    return generatorRandomPolygonInBox(randomEnvelopeInEnvelope(worldBox, 10, 10));
-}
-
-function randomPolygons(worldBox: geom.Envelope, n: number) {
-    const polygons = [];
-    for (let i = 0; i < n; ++i) {
-        polygons.push(randomPolygon(worldBox));
-    }
-    return polygons;
-}
-
 
 describe("rtree_with_jsts", () => {
 
-    test("insert_geometry", () => {
+    const worldBox = new geom.Envelope(0, 100, 0, 100);
+    const geomsize: BoxSize = { hmin: 2, wmin: 2, hmax: 10, wmax: 10 };
+    const polygons = randomPolygons(worldBox, 1000, geomsize);
+    const polygonToRTreeMBR = (g: geom.Geometry) => {
+        const envelope = g.getEnvelopeInternal();
+        const mbr = new RTreeMBR(envelope.getMinX(), envelope.getMinY(), envelope.getMaxX(), envelope.getMaxY());
+        return mbr;
+    }
 
-        const worldBox = new geom.Envelope(0, 100, 0, 100);
-        const polygons = randomPolygons(worldBox, 50);
-        const polygonToRTreeMBR = (g: geom.Polygon) => {
-            const envelope = g.getEnvelopeInternal();
-            const mbr = new RTreeMBR(envelope.getMinX(), envelope.getMinY(), envelope.getMaxX(), envelope.getMaxY());
-            return mbr;
+    const rtree = new RTree(2, 5);
+    rtree.setToMbrFunc(polygonToRTreeMBR);
+    for (let g of polygons) {
+        rtree.insert(g);
+    }
+
+    test("query_geometry", () => {
+
+        const search_size: BoxSize = { hmin: 20, wmin: 20, hmax: 40, wmax: 40 };
+        const search_polygon = randomPolygon(worldBox, search_size);
+
+        const search_result = rtree.search_overlap(polygonToRTreeMBR(search_polygon))
+            .map(e => e.record?.data as geom.Geometry)
+            .filter(g => g.overlaps(search_polygon));
+
+        const correct_result = polygons.filter(g => g.overlaps(search_polygon));
+
+        expect(search_result.length).toBe(correct_result.length);
+
+        for (let g of correct_result) {
+            expect(search_result.includes(g)).toBeTruthy();
         }
-
-        const rtree = new RTree(2, 5);
-        rtree.setToMbrFunc(polygonToRTreeMBR);
-        for (let g of polygons) {
-            rtree.insert(g);
-        }
-
-    });
-
-    // TODO search test
+    })
 
 });

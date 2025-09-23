@@ -5,8 +5,10 @@ Visit [Web Demo](https://wkgreat.github.io/spatial-index/) to show the dynamic v
 
 ## R-Tree
 
-### [Web Demo](https://wkgreat.github.io/spatial-index/)
-![R-Tree Demo](../../docs/rtree_web_demo.png)
+### Web Demo
+https://wkgreat.github.io/spatial-index/  
+
+![R-Tree Demo](https://github.com/wkgreat/spatial-index/blob/main/docs/rtree_web_demo.png?raw=true)
 
 ### Examples   
 

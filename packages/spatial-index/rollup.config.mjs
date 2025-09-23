@@ -2,7 +2,6 @@ import { glob } from 'glob'
 import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
 import commonjs from '@rollup/plugin-commonjs';
-import dts from "rollup-plugin-dts";
 
 const entries = glob.sync('src/**/*.ts');
 
@@ -29,8 +28,9 @@ export default [
         ],
         external: ['cytoscape']
     },
+    //cjs
     {
-        input: 'src/index.ts',
+        input: entries,
         output: {
             dir: 'dist/cjs',
             format: 'cjs',

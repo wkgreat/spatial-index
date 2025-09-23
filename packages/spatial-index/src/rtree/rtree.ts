@@ -828,10 +828,23 @@ export class RTree {
         const x_sep_norm = (x_maxLow - x_minHigh) / (x_maxHigh - x_minLow);
         const y_sep_norm = (y_maxLow - y_minHigh) / (y_maxHigh - y_minLow);
 
-        if (x_sep_norm > y_sep_norm) {
+
+        if (x_minHigh_eidx === x_maxLow_eidx && y_minHigh_eidx === y_maxLow_eidx) {
+            if (x_sep_norm > y_sep_norm) {
+                return [x_minHigh_eidx, (x_maxLow_eidx + 1) % node.entries.length];
+            } else {
+                return [y_minHigh_eidx, (y_maxLow_eidx + 1) % node.entries.length];
+            }
+        } else if (x_minHigh_eidx === x_maxLow_eidx) {
+            return [y_minHigh_eidx, y_maxLow_eidx];
+        } else if (y_minHigh_eidx === y_maxLow_eidx) {
             return [x_minHigh_eidx, x_maxLow_eidx];
         } else {
-            return [y_minHigh_eidx, y_maxLow_eidx];
+            if (x_sep_norm > y_sep_norm) {
+                return [x_minHigh_eidx, x_maxLow_eidx];
+            } else {
+                return [y_minHigh_eidx, y_maxLow_eidx];
+            }
         }
     }
 

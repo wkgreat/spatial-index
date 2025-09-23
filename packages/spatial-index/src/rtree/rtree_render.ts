@@ -88,9 +88,6 @@ interface RTreeRenderOptions {
 
 export class RTreeRender extends Probe {
 
-    //TODO set graph element and canvas element
-    //TODO use cytoscape batch
-
     layout_breadthfirst = {
         name: 'breadthfirst',
         roots: "",

@@ -1,6 +1,6 @@
 {
     "name": "spatial-index-examples",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "spatial index examples",
     "main": "index.js",
     "type": "module",
@@ -9,7 +9,7 @@
     "dependencies": {
         "@types/jsts": "^0.17.24",
         "jsts": "^2.12.1",
-        "spatial-index-js": "^1.0.3"
+        "spatial-index-js": "^1.0.4"
     },
     "scripts": {
         "start": "node rtree_example.js"

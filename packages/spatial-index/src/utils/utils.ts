@@ -8,17 +8,13 @@ export function randomFloat(a: number, b: number): number {
     return Math.random() * (b - a) + a;
 }
 
-export function inRange(a: number, left: number, right: number): boolean {
-    return a >= left && a <= right;
-}
-
 export function sleep(ms: number): Promise<number> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export class IDGenerator {
 
-    //TODO thread-safe
+    // TODO thread-safe
 
     counter: number = 0;
 

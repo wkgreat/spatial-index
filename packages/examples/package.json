@@ -12,6 +12,6 @@
         "spatial-index-js": "^1.0.4"
     },
     "scripts": {
-        "start": "node rtree_example.js"
+        "start": "node rtree_with_jsts.js"
     }
 }

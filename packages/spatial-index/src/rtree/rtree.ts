@@ -1,4 +1,5 @@
-import { IDGenerator, inRange } from "../utils/utils";
+import { Interval } from "../utils/common";
+import { IDGenerator } from "../utils/utils";
 import type Probe from "./probe";
 
 class RTreeIdGenerator {
@@ -27,33 +28,87 @@ class RTreeIdGenerator {
  * Minimum Bounding Rectangle
 */
 export class RTreeMBR {
-    /** @type {number}*/
-    xmin: number = 0;
-    /** @type {number}*/
-    ymin: number = 0;
-    /** @type {number}*/
-    xmax: number = 0;
-    /** @type {number}*/
-    ymax: number = 0;
+
+
+    dim: number = 0;
+
+    intervals: Interval[] = [];
+
     /**
-     * @constructor
-     * @param {number} xmin
-     * @param {number} ymin
-     * @param {number} xmax
-     * @param {number} ymax
-     */
-    constructor(xmin: number, ymin: number, xmax: number, ymax: number) {
-        this.xmin = xmin;
-        this.ymin = ymin;
-        this.xmax = xmax;
-        this.ymax = ymax;
+     * @example
+     * RTreeMBR.build(d1_min, d1_max, d2_min, d2_max, d3_min, d3_max,...);
+    */
+    static build(...args: number[]): RTreeMBR {
+        const len = args.length;
+        if (len % 2 !== 0) {
+            console.error("RTreeMBR.build input must be even!");
+        }
+        const mbr = new RTreeMBR();
+        mbr.dim = args.length / 2;
+        for (let i = 0; i < args.length; i += 2) {
+            const itv = new Interval(args[i], args[i + 1]);
+            mbr.intervals.push(itv);
+        }
+        return mbr;
+    }
+
+    static buildFromIntervals(intervals: Interval[]): RTreeMBR {
+        const mbr = new RTreeMBR();
+        mbr.dim = intervals.length;
+        mbr.intervals = intervals;
+        return mbr;
+    }
+
+    get xmin(): number {
+        return this.intervals[0].l;
+    }
+    get xmax(): number {
+        return this.intervals[0].r;
+    }
+    get ymin(): number {
+        return this.intervals[1].l;
+    }
+    get ymax(): number {
+        return this.intervals[1].r;
+    }
+    get zmin(): number {
+        return this.intervals[2].l;
+    }
+    get zmax(): number {
+        return this.intervals[2].r;
+    }
+
+    dmin(d: number): number {
+        return this.intervals[d].l;
+    }
+
+    dmax(d: number): number {
+        return this.intervals[d].r;
+    }
+
+    forceDim(d: number): RTreeMBR {
+        const mbr = this.clone();
+        if (this.dim < d) {
+            for (let i = mbr.dim; i < d; i++) {
+                mbr.intervals.push(new Interval(0, 0));
+            }
+            mbr.dim = d;
+        } else if (this.dim > d) {
+            mbr.intervals = mbr.intervals.slice(0, d);
+            mbr.dim = d;
+        }
+        return mbr;
     }
 
     /**
      * @returns {number} 
      */
     area(): number {
-        return (this.xmax - this.xmin) * (this.ymax - this.ymin);
+        let area = 1;
+        for (let d = 0; d < this.dim; ++d) {
+            area *= this.intervals[d].length();
+        }
+        return area;
     }
 
     /**
@@ -61,16 +116,18 @@ export class RTreeMBR {
      * @returns {RTreeMBR}
      */
     merge(mbr: RTreeMBR | null): RTreeMBR {
-        if (mbr) {
-            return new RTreeMBR(
-                Math.min(this.xmin, mbr.xmin),
-                Math.min(this.ymin, mbr.ymin),
-                Math.max(this.xmax, mbr.xmax),
-                Math.max(this.ymax, mbr.ymax));
-        } else {
+
+        if (mbr === null) {
             return this.clone();
         }
-
+        if (this.dim !== mbr.dim) {
+            console.error("RTreeMBR merge, different dimension!");
+        }
+        const newItv: Interval[] = [];
+        for (let d = 0; d < this.dim; ++d) {
+            newItv.push(this.intervals[d].merge(mbr.intervals[d]));
+        }
+        return RTreeMBR.buildFromIntervals(newItv);
     }
 
     /**
@@ -78,21 +135,12 @@ export class RTreeMBR {
      * @returns {void} 
     */
     addMbrInplace(mbr: RTreeMBR) {
-        this.xmin = Math.min(this.xmin, mbr.xmin);
-        this.ymin = Math.min(this.ymin, mbr.ymin);
-        this.xmax = Math.max(this.xmax, mbr.xmax);
-        this.ymax = Math.max(this.ymax, mbr.ymax);
-    }
-
-    /**
-     * @param {number} amin
-     * @param {number} amax
-     * @param {number} bmin
-     * @param {number} bmax
-     * @returns {boolean}
-     */
-    _intervalOverlap(amin: number, amax: number, bmin: number, bmax: number) {
-        return Math.max(amin, bmin) <= Math.min(amax, bmax);
+        if (this.dim !== mbr.dim) {
+            console.error("RTreeMBR addMbrInplace, different dimension!");
+        }
+        for (let d = 0; d < this.dim; ++d) {
+            this.intervals[d].mergeInplace(mbr.intervals[d]);
+        }
     }
 
     /**
@@ -101,23 +149,36 @@ export class RTreeMBR {
      * @returns {boolean}
      */
     overlap(mbr: RTreeMBR) {
-        const b1 = this._intervalOverlap(this.xmin, this.xmax, mbr.xmin, mbr.xmax);
-        const b2 = this._intervalOverlap(this.ymin, this.ymax, mbr.ymin, mbr.ymax);
-        return b1 && b2;
+        if (this.dim !== mbr.dim) {
+            console.error("RTreeMBR overlap, different dimension!");
+        }
+        for (let d = 0; d < this.dim; ++d) {
+            if (!this.intervals[d].overlap(mbr.intervals[d])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     within(mbr: RTreeMBR): boolean {
-        return inRange(this.xmin, mbr.xmin, mbr.xmax) &&
-            inRange(this.xmax, mbr.xmin, mbr.xmax) &&
-            inRange(this.ymin, mbr.ymin, mbr.ymax) &&
-            inRange(this.ymax, mbr.ymin, mbr.ymax);
+        if (this.dim !== mbr.dim) {
+            console.error("RTreeMBR within, different dimension!");
+        }
+        for (let d = 0; d < this.dim; ++d) {
+            if (!this.intervals[d].within(mbr.intervals[d])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
      * @returns {RTreeMBR}
      */
-    clone() {
-        return new RTreeMBR(this.xmin, this.ymin, this.xmax, this.ymax);
+    clone(): RTreeMBR {
+        const nums = this.intervals.flatMap(t => [t.l, t.r]);
+        const mbr = RTreeMBR.build(...nums);
+        return mbr;
     }
 }
 
@@ -126,6 +187,15 @@ type ToRtreeMBRFunc = (object: any) => RTreeMBR;
 type PickSeedsFuncType = (node: RTreeNode) => [number, number];
 type PickNextFuncType = (node1: RTreeNode, node2: RTreeNode, node3: RTreeNode, mbr1: RTreeMBR, mbr2: RTreeMBR) => [number, RTreeNode]
 type RTreeSearchCheckFuncType = (entry: RTreeEntry, mbr: RTreeMBR) => boolean;
+
+interface LinearPickSeedsDimInfo {
+    maxLow: number;
+    minHigh: number;
+    minLow: number;
+    maxHigh: number;
+    maxLow_eidx: number;
+    minHigh_eidx: number;
+}
 
 /**
  * @class RTree
@@ -161,8 +231,16 @@ export class RTree {
      * @param {number} [m=5] - maximum number of entries in a node.
      * @param {number} [d=2] - dimension of rtree
      */
-    constructor(m = 2, M = 5, d = 2) {
-        // TODO validate m and M
+    constructor(m: number = 2, M: number = 5, d: number = 2) {
+        if (m < 2) {
+            console.error("RTree should m >= 2");
+        }
+        if (m > M / 2) {
+            console.error("RTree should m <= M / 2");
+        }
+        if (d <= 0) {
+            console.error("RTree should d >= 1");
+        }
         this.m = m;
         this.M = M;
         this._dim = d;
@@ -329,12 +407,31 @@ export class RTree {
 
     insert(data: any, toMbrFunc?: ToRtreeMBRFunc) {
 
-        const record = new RTreeRecord(this, data, this._getDataMbr(data, toMbrFunc));
-
-        this.__probe__("rtree:insert:start", { target: this, record: record, data: data });
+        this.__probe__("rtree:insert:start", { target: this, data: data });
 
         if (data === null) {
-            console.error("not support null geom now.");
+            console.warn("RTree insert, data is null!");
+            this.__probe__("rtree:insert:finish", { target: this, node: null, entry: null, record: null, data: null });
+            return;
+        }
+
+        let mbr = this._getDataMbr(data, toMbrFunc);
+
+        if (mbr === null) {
+            console.warn("RTree insert, mbr is null!");
+            this.__probe__("rtree:insert:finish", { target: this, node: null, entry: null, record: null, data: null });
+            return;
+        }
+
+        if (this._dim !== mbr.dim) {
+            console.warn("RTree insert, dim is not same, mbr will be forced to rtree dim!");
+            mbr = mbr.forceDim(this._dim);
+        }
+
+        const record = new RTreeRecord(this, data, mbr);
+
+        if (data === null) {
+            console.warn("RTree insert, ");
             this.__probe__("rtree:insert:finish", { target: this, node: null, entry: null, record: null, data: null });
             return;
         }
@@ -774,77 +871,60 @@ export class RTree {
         return [idx1, idx2];
     }
 
+    _genLinearSeedDimInfo(): LinearPickSeedsDimInfo {
+
+        return {
+            maxLow: -Infinity,
+            minHigh: Infinity,
+            minLow: Infinity,
+            maxHigh: -Infinity,
+            maxLow_eidx: -1,
+            minHigh_eidx: -1
+        }
+    }
+
+    _calDimInfoSeperation(dinfo: LinearPickSeedsDimInfo) {
+        return (dinfo.maxLow - dinfo.minHigh) / (dinfo.maxHigh - dinfo.minLow);
+    }
+
     /**
      * @type {PickSeedsFuncType}
      */
     _linearPickSeeds(node: RTreeNode): [number, number] {
 
-        let x_maxLow = -Infinity;
-        let x_minHigh = Infinity;
-        let x_minLow = Infinity;
-        let x_maxHigh = -Infinity;
-        let x_maxLow_eidx = -1;
-        let x_minHigh_eidx = -1;
-        let y_maxLow = -Infinity;
-        let y_minHigh = Infinity;
-        let y_minLow = Infinity;
-        let y_maxHigh = -Infinity;
-        let y_maxLow_eidx = -1;
-        let y_minHigh_eidx = -1;
-
+        const dimInfos: LinearPickSeedsDimInfo[] = [];
+        for (let d = 0; d < this._dim; ++d) {
+            dimInfos.push(this._genLinearSeedDimInfo());
+        }
 
         for (let i = 0; i < node.entries.length; ++i) {
             const e = node.entries[i];
-            if (e!.mbr!.xmin > x_maxLow) {
-                x_maxLow = e!.mbr!.xmin;
-                x_maxLow_eidx = i;
-            }
-            if (e!.mbr!.xmax < x_minHigh) {
-                x_minHigh = e!.mbr!.xmax;
-                x_minHigh_eidx = i;
-            }
-            if (e!.mbr!.xmin < x_minLow) {
-                x_minLow = e!.mbr!.xmin;
-            }
-            if (e!.mbr!.xmax > x_maxHigh) {
-                x_maxHigh = e!.mbr!.xmax;
-            }
-            if (e!.mbr!.ymin > y_maxLow) {
-                y_maxLow = e!.mbr!.ymin;
-                y_maxLow_eidx = i;
-            }
-            if (e!.mbr!.ymax < y_minHigh) {
-                y_minHigh = e!.mbr!.ymax;
-                y_minHigh_eidx = i;
-            }
-            if (e!.mbr!.ymin < y_minLow) {
-                y_minLow = e!.mbr!.ymin;
-            }
-            if (e!.mbr!.ymax > y_maxHigh) {
-                y_maxHigh = e!.mbr!.ymax;
+            for (let d = 0; d < this._dim; ++d) {
+                if (e!.mbr!.dmin(d) > dimInfos[d].maxLow) {
+                    dimInfos[d].maxLow = e!.mbr!.dmin(d);
+                    dimInfos[d].maxLow_eidx = i;
+                }
+                if (e!.mbr!.dmax(d) < dimInfos[d].minHigh) {
+                    dimInfos[d].minHigh = e!.mbr!.dmax(d);
+                    dimInfos[d].minHigh_eidx = i;
+                }
+                if (e!.mbr!.dmin(d) < dimInfos[d].minLow) {
+                    dimInfos[d].minLow = e!.mbr!.dmin(d);
+                }
+                if (e!.mbr!.dmax(d) > dimInfos[d].maxHigh) {
+                    dimInfos[d].maxHigh = e!.mbr!.dmax(d);
+                }
             }
         }
 
-        const x_sep_norm = (x_maxLow - x_minHigh) / (x_maxHigh - x_minLow);
-        const y_sep_norm = (y_maxLow - y_minHigh) / (y_maxHigh - y_minLow);
+        const validDimInfos = dimInfos.filter(info => info.maxLow_eidx !== info.minHigh_eidx);
 
-
-        if (x_minHigh_eidx === x_maxLow_eidx && y_minHigh_eidx === y_maxLow_eidx) {
-            if (x_sep_norm > y_sep_norm) {
-                return [x_minHigh_eidx, (x_maxLow_eidx + 1) % node.entries.length];
-            } else {
-                return [y_minHigh_eidx, (y_maxLow_eidx + 1) % node.entries.length];
-            }
-        } else if (x_minHigh_eidx === x_maxLow_eidx) {
-            return [y_minHigh_eidx, y_maxLow_eidx];
-        } else if (y_minHigh_eidx === y_maxLow_eidx) {
-            return [x_minHigh_eidx, x_maxLow_eidx];
+        if (validDimInfos.length === 0) {
+            const dinfo = dimInfos.reduce((p, c) => this._calDimInfoSeperation(p) > this._calDimInfoSeperation(c) ? p : c);
+            return [dinfo.maxLow_eidx, (dinfo.minHigh_eidx + 1) % node.entries.length];
         } else {
-            if (x_sep_norm > y_sep_norm) {
-                return [x_minHigh_eidx, x_maxLow_eidx];
-            } else {
-                return [y_minHigh_eidx, y_maxLow_eidx];
-            }
+            const dinfo = validDimInfos.reduce((p, c) => this._calDimInfoSeperation(p) > this._calDimInfoSeperation(c) ? p : c);
+            return [dinfo.maxLow_eidx, dinfo.minHigh_eidx];
         }
     }
 
@@ -1064,7 +1144,7 @@ export class RTreeEntry {
     */
     node: RTreeNode | null = null;
     /**
-     * @type {Geometry}
+     * @type {RTreeRecord}
      * if leaf entry, record is not null
     */
     record: RTreeRecord | null = null;

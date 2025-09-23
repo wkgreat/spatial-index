@@ -17,7 +17,7 @@
     "test": "yarn workspace spatial-index-js run test",
     "benchmark": "yarn workspace spatial-index-benchmark run start",
     "deploy": "yarn workspace spatial-index-demos run deploy",
-    "example": "yarn workspace spatial-index-examples run start",
+    "example": "yarn run build:spatial-index && yarn workspace spatial-index-examples run start",
     "version": "lerna version --no-push --no-git-tag-version"
   },
   "devDependencies": {

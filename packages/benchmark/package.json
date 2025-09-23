@@ -7,9 +7,9 @@
     "license": "MIT",
     "private": true,
     "dependencies": {
-        "spatial-index-js": "^1.0.0",
         "@types/jsts": "^0.17.24",
-        "jsts": "^2.12.1"
+        "jsts": "^2.12.1",
+        "spatial-index-js": "^1.0.0"
     },
     "scripts": {
         "start": "node rtree_benchmark.js"

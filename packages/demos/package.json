@@ -1,12 +1,12 @@
 {
   "name": "spatial-index-demos",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "spatial index web demos",
   "main": "index.js",
   "license": "MIT",
   "private": true,
   "dependencies": {
-    "spatial-index-js": "^1.0.0"
+    "spatial-index-js": "^1.0.2"
   },
   "scripts": {
     "build": "webpack --config webpack.config.js",

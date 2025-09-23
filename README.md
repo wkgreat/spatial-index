@@ -12,5 +12,5 @@ https://www.npmjs.com/package/spatial-index-js
 ## Index List
 | Index |
 | --- |
-| [R-Tree](packages\spatial-index\README.md) |
+| [R-Tree](packages/spatial-index/README.md) |
 | ... |

@@ -3,6 +3,9 @@ All kinds of spatial index implementation and visualization
 
 Visit [Web Demo](https://wkgreat.github.io/spatial-index/) to show the dynamic visualized structure of spatial indices.
 
+## Github
+https://github.com/wkgreat/spatial-index
+
 ## R-Tree
 
 ### Web Demo
@@ -13,7 +16,6 @@ https://wkgreat.github.io/spatial-index/
 ### Examples   
 
 ```javascript
-
 import { RTree, RTreeMBR } from "spatial-index-js/rtree";
 import * as geom from 'jsts/org/locationtech/jts/geom.js';
 import RelateOp from 'jsts/org/locationtech/jts/operation/relate/RelateOp.js';
@@ -24,7 +26,7 @@ import WKTWriter from 'jsts/org/locationtech/jts/io/WKTWriter.js';
 /*
 build rtree to index jsts geometries
 */
-function rtree_example_1() {
+function rtree_with_jsts() {
 
     // function random a float number
     function randomFloat(a, b) {
@@ -56,7 +58,7 @@ function rtree_example_1() {
     // define the jsts geometry how convert to RtreeMBR
     const polygonToRTreeMBR = (g) => {
         const envelope = g.getEnvelopeInternal();
-        const mbr = new RTreeMBR(envelope.getMinX(), envelope.getMinY(), envelope.getMaxX(), envelope.getMaxY());
+        const mbr = RTreeMBR.build(envelope.getMinX(), envelope.getMaxX(), envelope.getMinY(), envelope.getMaxY());
         return mbr;
     }
 
@@ -86,7 +88,7 @@ function rtree_example_1() {
     }
 }
 
-rtree_example_1();
+rtree_with_jsts();
 
 ```
 

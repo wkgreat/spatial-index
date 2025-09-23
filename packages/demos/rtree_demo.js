@@ -35,7 +35,7 @@ export class Geometry {
         let y1 = Math.min(y0 + randomFloat(hmin, hmax), ymax);
         const g = new Geometry();
         g.id = Geometry.counter++;
-        g.mbr = new RTreeMBR(x0, y0, x1, y1);
+        g.mbr = RTreeMBR.build(x0, x1, y0, y1);
         return g;
     }
 

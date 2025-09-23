@@ -5,10 +5,19 @@
   "module": "dist/esm/index.js",
   "type": "module",
   "types": "dist/types/index.d.ts",
-  "repository": "https://github.com/wkgreat/spatial-index.git",
   "author": "ke.wang <wkgreat@outlook.com>",
   "license": "MIT",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wkgreat/spatial-index.git"
+  },
+  "homepage": "https://github.com/wkgreat/spatial-index/blob/main/README.md",
+  "keywords": [
+    "spatial",
+    "spatial index",
+    "r-tree"
+  ],
   "files": [
     "dist"
   ],

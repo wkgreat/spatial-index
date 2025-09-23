@@ -1,6 +1,7 @@
 {
   "name": "spatial-index-project",
   "description": "spatial index",
+  "version": "1.0.2",
   "private": true,
   "repository": "https://github.com/wkgreat/spatial-index.git",
   "author": "wkgreat <wkgreat@outlook.com>",

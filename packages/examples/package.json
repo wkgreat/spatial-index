@@ -9,9 +9,11 @@
     "dependencies": {
         "@types/jsts": "^0.17.24",
         "jsts": "^2.12.1",
+        "@types/three": "^0.180.0",
+        "three": "^0.180.0",
         "spatial-index-js": "^1.0.4"
     },
     "scripts": {
-        "start": "node rtree_with_jsts.js"
+        "start": "node"
     }
 }

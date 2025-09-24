@@ -32,7 +32,9 @@
   },
   "devDependencies": {
     "@types/jsts": "^0.17.24",
-    "jsts": "^2.12.1"
+    "@types/three": "^0.180.0",
+    "jsts": "^2.12.1",
+    "three": "^0.180.0"
   },
   "scripts": {
     "build:types": "npx tsc --emitDeclarationOnly",

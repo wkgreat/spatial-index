@@ -3,6 +3,8 @@ import { randomFloat } from "../src/utils/utils";
 import { geom } from 'jsts';
 import { BoxSize, randomPolygon, randomPolygons } from "./jsts_utils";
 import fs from 'fs';
+import { createRandomMesh, meshOverlapByAABB, meshToAABB } from "./three_utils";
+import * as THREE from 'three';
 
 function randomMbrinMbr(mbr: RTreeMBR) {
 
@@ -49,7 +51,7 @@ describe('rtree', () => {
 });
 
 
-describe("rtree_with_jsts", () => {
+describe("rtree_2d_with_jsts", () => {
 
     const worldBox = new geom.Envelope(0, 100, 0, 100);
     const geomsize: BoxSize = { hmin: 2, wmin: 2, hmax: 10, wmax: 10 };
@@ -85,3 +87,53 @@ describe("rtree_with_jsts", () => {
     })
 
 });
+
+
+describe("rtree_3d_with_three", () => {
+
+    test("rtree_3d_with_three_search", () => {
+
+        const N = 100;
+        const m = 5;
+        const M = 10;
+        const dim = 3;
+
+        const meshes: THREE.Mesh[] = [];
+
+        const meshToRTreeMBR = (mesh: THREE.Mesh) => {
+            const aabb = meshToAABB(mesh);
+            const mbr = RTreeMBR.build(
+                aabb.min.x, aabb.max.x,
+                aabb.min.y, aabb.max.y,
+                aabb.min.z, aabb.max.z);
+            return mbr;
+        }
+
+        for (let i = 0; i < N; ++i) {
+            meshes.push(createRandomMesh());
+        }
+
+        const searchMesh = createRandomMesh();
+
+        const rtree = new RTree(m, M, dim);
+
+        rtree.setToMbrFunc(meshToRTreeMBR);
+
+        for (let mesh of meshes) {
+            rtree.insert(mesh);
+        }
+
+        const results = rtree
+            .search_overlap(meshToRTreeMBR(searchMesh))
+            .map(e => e.record!.data);
+
+        const correctResults = meshes.filter(mesh => meshOverlapByAABB(mesh, searchMesh));
+
+        expect(results.length).toBe(correctResults.length);
+
+        for (let mesh of correctResults) {
+            expect(results.includes(mesh)).toBeTruthy();
+        }
+    })
+
+})

@@ -8,13 +8,21 @@ https://github.com/wkgreat/spatial-index
 
 ## R-Tree
 
+### Features
+* Support Multidimensionnal R-tree
+* Support index any customized spatial objects as long as can get mbr of these objects
+* Support draw the tree strcuture and mbr structure of rtree (Using RTreeRender class)
+
 ### Web Demo
 https://wkgreat.github.io/spatial-index/  
 
 ![R-Tree Demo](https://github.com/wkgreat/spatial-index/blob/main/docs/rtree_web_demo.png?raw=true)
 
 ### Examples   
+[All Examples](https://github.com/wkgreat/spatial-index/tree/main/packages/examples)
 
+### One of Examples   
+use rtree to index 2d jsts geometry
 ```javascript
 import { RTree, RTreeMBR } from "spatial-index-js/rtree";
 import * as geom from 'jsts/org/locationtech/jts/geom.js';

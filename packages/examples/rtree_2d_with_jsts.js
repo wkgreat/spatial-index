@@ -8,7 +8,7 @@ import WKTWriter from 'jsts/org/locationtech/jts/io/WKTWriter.js';
 /*
 build rtree to index jsts geometries
 */
-function rtree_with_jsts() {
+function rtree_2d_with_jsts() {
 
     // function random a float number
     function randomFloat(a, b) {
@@ -70,4 +70,4 @@ function rtree_with_jsts() {
     }
 }
 
-rtree_with_jsts();
+rtree_2d_with_jsts();

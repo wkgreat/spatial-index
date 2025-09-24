@@ -1,6 +1,6 @@
 {
     "name": "spatial-index-examples",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "spatial index examples",
     "main": "index.js",
     "type": "module",
@@ -8,10 +8,10 @@
     "private": true,
     "dependencies": {
         "@types/jsts": "^0.17.24",
-        "jsts": "^2.12.1",
         "@types/three": "^0.180.0",
-        "three": "^0.180.0",
-        "spatial-index-js": "^1.0.4"
+        "jsts": "^2.12.1",
+        "spatial-index-js": "^1.0.5",
+        "three": "^0.180.0"
     },
     "scripts": {
         "start": "node"

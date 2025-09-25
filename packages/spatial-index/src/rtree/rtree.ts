@@ -2,6 +2,9 @@ import { Interval } from "../utils/common";
 import { IDGenerator } from "../utils/utils";
 import type Probe from "./probe";
 
+/**
+ * @internal
+*/
 class RTreeIdGenerator {
 
     _nodeIdGenerator: IDGenerator = new IDGenerator();
@@ -24,17 +27,36 @@ class RTreeIdGenerator {
 }
 
 /**
- * @class RTreeMBR
- * Minimum Bounding Rectangle
+ * Minimum Bounding Rectangle of spatial object
 */
 export class RTreeMBR {
 
 
+    /**
+     * dimension of mbr
+    */
     dim: number = 0;
 
+    /**
+     * interval of each dimension
+    */
     intervals: Interval[] = [];
 
+    constructor(...args: number[]) {
+        const len = args.length;
+        if (len % 2 !== 0) {
+            console.error("RTreeMBR.build input must be even!");
+        }
+        this.dim = args.length / 2;
+        for (let i = 0; i < args.length; i += 2) {
+            const itv = new Interval(args[i], args[i + 1]);
+            this.intervals.push(itv);
+        }
+    }
+
     /**
+     * @param args number of box boundary.
+     * @returns the mbr
      * @example
      * RTreeMBR.build(d1_min, d1_max, d2_min, d2_max, d3_min, d3_max,...);
     */
@@ -101,7 +123,7 @@ export class RTreeMBR {
     }
 
     /**
-     * @returns {number} 
+     * @returns the length of 1d mbr, the area of 2d mbr, or the volume of 3d or nd mbr.
      */
     area(): number {
         let area = 1;
@@ -112,8 +134,8 @@ export class RTreeMBR {
     }
 
     /**
-     * @param {RTreeMBR} mbr
-     * @returns {RTreeMBR}
+     * @param mbr the mbr that this mbr merge with
+     * @returns the merged mbr
      */
     merge(mbr: RTreeMBR | null): RTreeMBR {
 
@@ -131,10 +153,9 @@ export class RTreeMBR {
     }
 
     /**
-     * @param {RTreeMBR} mbr
-     * @returns {void} 
+     * @param mbr the mbr will merge into this mbr.
     */
-    addMbrInplace(mbr: RTreeMBR) {
+    addMbrInplace(mbr: RTreeMBR): void {
         if (this.dim !== mbr.dim) {
             console.error("RTreeMBR addMbrInplace, different dimension!");
         }
@@ -144,11 +165,10 @@ export class RTreeMBR {
     }
 
     /**
-     *
-     * @param {RTreeMBR} mbr
-     * @returns {boolean}
+     * if this mbr overlaps with other mbr
+     * @param mbr other mbr
      */
-    overlap(mbr: RTreeMBR) {
+    overlap(mbr: RTreeMBR): boolean {
         if (this.dim !== mbr.dim) {
             console.error("RTreeMBR overlap, different dimension!");
         }
@@ -160,6 +180,10 @@ export class RTreeMBR {
         return true;
     }
 
+    /**
+     * if this mbr within other mbr
+     * @param mbr other mbr
+    */
     within(mbr: RTreeMBR): boolean {
         if (this.dim !== mbr.dim) {
             console.error("RTreeMBR within, different dimension!");
@@ -173,7 +197,8 @@ export class RTreeMBR {
     }
 
     /**
-     * @returns {RTreeMBR}
+     * clone this mbr
+     * @returns the cloned mbr
      */
     clone(): RTreeMBR {
         const nums = this.intervals.flatMap(t => [t.l, t.r]);
@@ -198,38 +223,52 @@ interface LinearPickSeedsDimInfo {
 }
 
 /**
- * @class RTree
- * @todo add write lock
- * @todo replace geometry to record
  * RTree class
- * @typedef {(object)=>RTreeMBR} ToRtreeMBRFunc
 */
 export class RTree {
 
-    m = 2;
-
-    M = 5;
-
-    /**@type {number} dimension of Rtree*/
-    _dim = 2;
-
-    /**@type {ToRtreeMBRFunc|null}*/
-    _toMbrFunc: ToRtreeMBRFunc | null = null;
-
-    /**@type {RTreeNode|null}*/
-    root: RTreeNode | null = null;
-
-    /**@type {Probe}*/
-    _probe: Probe | null = null;
-
-    /**@type {RTreeIdGenerator}*/
-    _idGenerator = new RTreeIdGenerator();
+    /**
+     * @readonly
+     * the minimum number of entries per node
+    */
+    m: number = 2;
 
     /**
-     * @constructor 
-     * @param {number} [m=2] - minimum number of entries in a node, m should be little or equal than M.
-     * @param {number} [m=5] - maximum number of entries in a node.
-     * @param {number} [d=2] - dimension of rtree
+     * @readonly
+     * the maximum number of entries per node
+    */
+    M: number = 5;
+
+    /**
+     * @internal
+     * dimension of Rtree
+     * */
+    _dim: number = 2;
+
+    /**
+     * @internal
+     * */
+    _toMbrFunc: ToRtreeMBRFunc | null = null;
+
+    /**
+     * the root of r-tree
+    */
+    root: RTreeNode | null = null;
+
+    /**
+     * @internal
+     * */
+    _probe: Probe | null = null;
+
+    /**
+     * @internal
+     * */
+    _idGenerator: RTreeIdGenerator = new RTreeIdGenerator();
+
+    /**
+     * @param m minimum number of entries in a node, m should be little or equal than M.
+     * @param M maximum number of entries in a node.
+     * @param d dimension of rtree
      */
     constructor(m: number = 2, M: number = 5, d: number = 2) {
         if (m < 2) {
@@ -253,8 +292,6 @@ export class RTree {
         this._probe = probe;
     }
 
-
-
     /**
      * @param {ToRtreeMBRFunc} f 
     */
@@ -263,8 +300,10 @@ export class RTree {
     }
 
     /**
+     * @internal
      * @param {object} data
      * @param {ToRtreeMBRFunc} toMbrFunc
+     * @returns {RTreeMBR|null}
     */
     _getDataMbr(data: any, toMbrFunc?: ToRtreeMBRFunc): RTreeMBR | null {
         if (toMbrFunc) {
@@ -278,6 +317,7 @@ export class RTree {
     }
 
     /**
+     * @internal
      * @param {string} tag
      * @param {object} data
      */
@@ -291,7 +331,7 @@ export class RTree {
      * @returns {number} the level of leaf node
      * the root level is zero.
     */
-    getLeafLevel() {
+    getLeafLevel(): number {
         if (this.root == null) {
             return -1;
         }
@@ -312,7 +352,7 @@ export class RTree {
      * @returns {number} get depth from node downward 
      * leaf node depth is zero.
     */
-    getDepthFromNode(node: RTreeNode) {
+    getDepthFromNode(node: RTreeNode): number {
         let depth = 0;
         let n: RTreeNode | null = node;
         while (n && !n.isLeaf) {
@@ -326,7 +366,7 @@ export class RTree {
     }
 
     /**
-     *
+     * @internal
      * @param {RTreeEntry} entry
      * @param {number} level
      */
@@ -353,7 +393,7 @@ export class RTree {
     }
 
     /**
-     *
+     * @internal
      * @param {RTreeEntry} entry
      * @param {number} entry_level
      * @returns {RTreeNode}
@@ -405,6 +445,14 @@ export class RTree {
         return N;
     }
 
+    /**
+     * insert a data into rtree
+     * @param data the data or object
+     * @param toMbrFunc the function that convert the data to mbr
+     * toMbrFunc is optional.
+     * if not provide toMbrFunc parameter, rtree will use predefined ToRtreeMBRFunc to convert this data.
+     * the predefined ToRtreeMBRFunc should be set by calling rtree.setToMbrFunc function.
+    */
     insert(data: any, toMbrFunc?: ToRtreeMBRFunc) {
 
         this.__probe__("rtree:insert:start", { target: this, data: data });
@@ -462,6 +510,8 @@ export class RTree {
     }
 
     /**
+     * @internal
+     * 
      * @param {RTreeEntry} entry
      * @returns {RTreeNode} leaf node 
     */
@@ -509,6 +559,8 @@ export class RTree {
     }
 
     /**
+     * @internal
+     * 
      * @param {RTreeNode} rawnode 
      * @param {RTreeNode} node1
      * @param {RTreeNode|null} node2
@@ -565,6 +617,7 @@ export class RTree {
     }
 
     /**
+     * @internal
      * @private
      * @param {RTreeNode} node
      * @param {RTreeEntry} entry  
@@ -574,11 +627,14 @@ export class RTree {
     }
 
     /**
-     * @param {object} data 
-     * @param {ToRtreeMBRFunc} [toMbrFunc=null]
-     * @returns {void}
+     * 
+     * @param data the data need delete from the rtree
+     * @param toMbrFunc the function that convert the data to mbr
+     * toMbrFunc is optional.
+     * if not provide toMbrFunc parameter, rtree will use predefined ToRtreeMBRFunc to convert this data.
+     * the predefined ToRtreeMBRFunc should be set by calling rtree.setToMbrFunc function.
     */
-    delete(data: any, toMbrFunc?: ToRtreeMBRFunc) {
+    delete(data: any, toMbrFunc?: ToRtreeMBRFunc): void {
 
         this.__probe__("rtree:delete:start", { target: this, data: data });
 
@@ -607,6 +663,8 @@ export class RTree {
     };
 
     /**
+     * @internal
+     * 
      * @param {object} data
      * @param {RTreeMBR} mbr 
      * @returns {[RTreeNode,RTreeEntry]} 
@@ -637,6 +695,8 @@ export class RTree {
     };
 
     /**
+     * @internal
+     * 
      * @param {RTreeNode} node
      * @returns {number}
      */
@@ -647,6 +707,8 @@ export class RTree {
     }
 
     /**
+     * @internal
+     * 
      * @param {RTreeNode} node the node need condense 
      * @returns {void}
     */
@@ -683,6 +745,8 @@ export class RTree {
 
 
     /**
+     * @internal
+     * 
      * @param {RTreeNode} node 
      * @returns {[RTreeNode,RTreeNode]} return two nodes
     */
@@ -721,6 +785,8 @@ export class RTree {
     }
 
     /**
+     * @internal
+     * 
      * @param {RTreeNode} node the old node
      * @param {RTreeNode} lnode the new left node
      * @param {RTreeNode} rnode the new right node 
@@ -734,6 +800,8 @@ export class RTree {
     }
 
     /**
+     * @internal
+     * 
      * @param {RTreeNode} fromNode
      * @param {RTreeNode} toNode
      * @param {number} idx
@@ -748,6 +816,8 @@ export class RTree {
     }
 
     /**
+     * @internal
+     * 
      * @param {RTreeNode} node
      * @returns {RTreeMBR}
      */
@@ -766,6 +836,8 @@ export class RTree {
     }
 
     /**
+     * @internal
+     * 
      * @typedef {(node)=>[number,number]} PickSeedsFuncType
      * @typedef {(RTreeNode,RTreeNode,RTreeNode,MBR,MBR)=>[number,RTreeNode]} PickNextFuncType
      * 
@@ -819,6 +891,7 @@ export class RTree {
     }
 
     /**
+     * @internal
      * @param {RTreeNode} node the old node
      * @param {RTreeNode} lnode the new left node
      * @param {RTreeNode} rnode the new right node 
@@ -829,6 +902,7 @@ export class RTree {
     }
 
     /**
+     * @internal
      * @param {RTreeNode} node the old node
      * @param {RTreeNode} lnode the new left node
      * @param {RTreeNode} rnode the new right node 
@@ -839,16 +913,18 @@ export class RTree {
     }
 
     /**
+     * @internal
      * @param {RTreeNode} node the old node
      * @param {RTreeNode} lnode the new left node
      * @param {RTreeNode} rnode the new right node 
-     * @returns {void} 
+     * @returns {void}
     */
     _doubleSortSplit(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode) {
         //TODO
     }
 
     /**
+     * @internal
      * @type {PickSeedsFuncType}
      */
     _quadtaticPickSeeds(node: RTreeNode): [number, number] {
@@ -871,6 +947,9 @@ export class RTree {
         return [idx1, idx2];
     }
 
+    /**
+     * @internal
+    */
     _genLinearSeedDimInfo(): LinearPickSeedsDimInfo {
 
         return {
@@ -883,11 +962,15 @@ export class RTree {
         }
     }
 
+    /**
+     * @internal
+    */
     _calDimInfoSeperation(dinfo: LinearPickSeedsDimInfo) {
         return (dinfo.maxLow - dinfo.minHigh) / (dinfo.maxHigh - dinfo.minLow);
     }
 
     /**
+     * @internal
      * @type {PickSeedsFuncType}
      */
     _linearPickSeeds(node: RTreeNode): [number, number] {
@@ -929,7 +1012,7 @@ export class RTree {
     }
 
     /**
-     *
+     * @internal
      * @type {PickNextFuncType}
      */
     _pickNext_minExpandArea(node: RTreeNode, lnode: RTreeNode, rnode: RTreeNode, lmbr: RTreeMBR, rmbr: RTreeMBR): [number, RTreeNode] {
@@ -966,9 +1049,10 @@ export class RTree {
     }
 
     /**
-     * @param {RTreeMBR} mbr search mbr 
-     * @param {(RTreeEntry, RTreeMBR)=>boolean} check_func check the entry and the mbr is matched
-     * @returns {RTreeEntry[]}
+     * use mbr to search for leaf entries that check func returns true
+     * @param mbr search mbr 
+     * @param check_func check the entry and the mbr is matched
+     * @returns the leaf entries that match. these entries point to records contain the target spatial data.
     */
     search(mbr: RTreeMBR, check_func: RTreeSearchCheckFuncType): RTreeEntry[] {
 
@@ -1008,8 +1092,9 @@ export class RTree {
 
 
     /**
-     * @param {RTreeMBR} mbr
-     * @returns {RTreeEntry[]}
+     * search data that overlap with mbr.
+     * @param mbr the mbr
+     * @returns some of leaf entries. these entries point to records contain the target spatial data.
     */
     search_overlap(mbr: RTreeMBR): RTreeEntry[] {
         this.__probe__("rtree:search_overlap:start", { target: this, mbr });
@@ -1021,7 +1106,7 @@ export class RTree {
     }
 
     /**
-     * @returns {void}
+     * clear the rtree to empty.
     */
     clear() {
         this.__probe__("rtree:clear:start", { target: this });
@@ -1030,46 +1115,53 @@ export class RTree {
     }
 
     /**
-     * @returns {boolean}
+     * is the rtree is empty
     */
-    isEmpty() {
+    isEmpty(): boolean {
         return this.root === null || this.root.entries.length === 0;
     }
 
 };
 
+/**
+ * The node of r-tree
+*/
 export class RTreeNode {
 
-    /**@type {RTree}*/
+    /**
+     * The tree that belongs to
+    */
     tree: RTree | null = null;
 
-    /**@type {string}*/
+    /**
+     * @internal
+     * */
     _id: number | null = null;
 
     /**
-     * @type {RTreeNode|null}
      * parent node of this.
     */
     parent: RTreeNode | null = null;
 
     /**
-     * @type {RTreeEntry|null}
      * this entry point to this in parent node
     */
     entry: RTreeEntry | null = null;
 
-    /**@type {boolean}*/
+    /**
+     * is the node leaf or not.
+    */
     isLeaf: boolean = false;
 
     /**
-     * @type {RTreeEntry[]}
+     * the entries in this node.
     */
     entries: (RTreeEntry | null)[] = [];
 
     /**
-     * @static
-     * @param {RTree} tree 
-     * @returns {RTreeNode}
+     * build a root node for a tree
+     * @param tree the tree
+     * @returns the root node
     */
     static buildRoot(tree: RTree) {
         const root = new RTreeNode();
@@ -1092,8 +1184,9 @@ export class RTreeNode {
     }
 
     /**
-     * @param {RTree} tree 
-     * @returns {RTreeNode}
+     * build a empty node for a tree
+     * @param tree the tree
+     * @returns the empty node
      */
     static buildEmptyNode(tree: RTree): RTreeNode {
         const node = new RTreeNode();
@@ -1106,9 +1199,10 @@ export class RTreeNode {
     }
 
     /**
-     * @param {RTreeEntry} entry
+     * add a entry into the node
+     * @param entry
      */
-    addEntry(entry: RTreeEntry) {
+    addEntry(entry: RTreeEntry): void {
 
         this.entries.push(entry);
         this.isLeaf = entry.isLeaf;
@@ -1120,35 +1214,46 @@ export class RTreeNode {
 
 }
 
+/**
+ * Entry of r-tree
+*/
 export class RTreeEntry {
 
-    /**@type {RTree}*/
+    /**
+     * the tree that belongs to
+    */
     tree: RTree | null = null;
 
-    /**@type {number}*/
+    /**
+     * @internal
+    */
     _id: number | null = null;
 
     /**
-     * @type {RTreeMBR}
      * mbr of this entry
     */
     mbr: RTreeMBR | null = null;
+
     /**
-     * @type {boolean}
      * is leaf entry.
     */
     isLeaf: boolean = false;
+
     /**
-     * @type {RTreeNode}
      * if not leaf entry, node is child node that the entry point
     */
     node: RTreeNode | null = null;
+
     /**
-     * @type {RTreeRecord}
      * if leaf entry, record is not null
     */
     record: RTreeRecord | null = null;
 
+    /**
+     * build a entry for the record
+     * @param record the record
+     * @returns the entry
+    */
     static buildFromRecord(record: RTreeRecord): RTreeEntry {
         const entry = new RTreeEntry();
         entry.tree = record.tree;
@@ -1160,9 +1265,9 @@ export class RTreeEntry {
     }
 
     /**
-     * @static
-     * @param {RTreeNode} node
-     * @returns {RTreeEntry}
+     * build a entry for a node
+     * @param node the node
+     * @returns the entry
      */
     static buildFromNode(node: RTreeNode): RTreeEntry {
         const entry = new RTreeEntry();
@@ -1184,6 +1289,9 @@ export class RTreeEntry {
         return this._id;
     }
 
+    /**
+     * refresh the mbr of this entry
+    */
     refreshMBR() {
 
         if (this.isLeaf && this.record) {
@@ -1205,27 +1313,35 @@ export class RTreeEntry {
 };
 
 /**
- * @class RTreeRecord
- * @template T
  * A leaf node point to a RTreeRecord object
  * RTreeRecord contains a data field (geometry object or other object contains spatial information) and a mbr and a record id.
- * @todo replace RTreeEntry geom field to record field
 */
 export class RTreeRecord {
 
-
+    /**
+     * the tree that belongs to
+    */
     tree: RTree | null = null;
-    /**@type {number}*/
+
+    /**
+     * @internal
+    */
     _id: number | null = null;
-    /**@type {RTreeMBR}*/
+
+    /**
+     * the mbr
+    */
     mbr: RTreeMBR | null = null;
-    /**@type {T}*/
+
+    /**
+     * the data that the record contains. it is the ultimate object the r-tree index for
+    */
     data: object | null = null;
 
     /**
-     * @constructor
-     * @param {T} data
-     * @param {RTreeMBR} mbr
+     * @param tree the tree
+     * @param data the data for indexing
+     * @param mbr the mbr of this data
     */
     constructor(tree: RTree, data: object, mbr: RTreeMBR | null) {
         this.tree = tree;

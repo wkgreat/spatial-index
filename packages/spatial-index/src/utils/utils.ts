@@ -1,17 +1,15 @@
-/**
- *
- * @param {number} a
- * @param {number} b
- * @returns {number}
- */
+
+/**@internal*/
 export function randomFloat(a: number, b: number): number {
     return Math.random() * (b - a) + a;
 }
 
+/**@internal*/
 export function sleep(ms: number): Promise<number> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/** @internal */
 export class IDGenerator {
 
     // TODO thread-safe

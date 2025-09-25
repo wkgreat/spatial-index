@@ -1,0 +1,14 @@
+{
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "out": "docs",
+    "exclude": [],
+    "includeVersion": true,
+    "excludePrivate": true,
+    "excludeProtected": false,
+    "excludeInternal": true,
+    "tsconfig": "tsconfig.json",
+    "theme": "default",
+    "hideGenerator": false,
+}

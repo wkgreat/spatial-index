@@ -4,16 +4,14 @@ import { RTreeMBR, RTree, RTreeEntry, RTreeNode, RTreeRecord } from "./rtree";
 
 type RTreeRenderExtent = [number, number, number, number];
 type RTreeRenderCanvasCoordConvertFuncType = (x: number, y: number) => [number, number];
+type RTreeState = 'NULL' | 'SELECT' | 'INSERT' | 'SEARCH' | 'DELETE';
 
 /**
- * @class RTreeStateMachine
- * @typedef {'NULL'|'SELECT'|'INSERT'|'SEARCH'|'DELETE'} RTreeState
+ * @internal
 */
 class RTreeStateMachine {
 
-
-    /**@type {RTreeState}*/
-    state = "NULL";
+    state: RTreeState = "NULL";
 
     selectEntry: RTreeEntry | null = null;
     selectNode: RTreeNode | null = null;
@@ -80,14 +78,35 @@ class RTreeStateMachine {
 }
 
 
+/**
+ * the RTreeRender construct options
+*/
 interface RTreeRenderOptions {
+    /**
+     * the tree for render
+    */
     rtree: RTree;
+
+    /**
+     * the div dom id for render rtree tree structure
+    */
     graph_div_id: string;
+
+    /**
+     * the canvas dom id for render tree mbr structure
+    */
     canvas_div_id: string;
 }
 
+
+/**
+ * the web render for the rtree structure
+*/
 export class RTreeRender extends Probe {
 
+    /**
+     * @internal
+    */
     layout_breadthfirst = {
         name: 'breadthfirst',
         roots: "",
@@ -104,13 +123,26 @@ export class RTreeRender extends Probe {
         // animationDuration: 800,             // 动画持续 800 毫秒
     }
 
+    /**
+     * @internal
+     */
     layout_cose = {
         name: 'cose'
     }
 
+    /**
+     * the div dom id for render rtree tree structure
+    */
     graph_div_id = "";
+
+    /**
+     * the canvas dom id for render tree mbr structure
+    */
     canvas_div_id = "";
 
+    /**
+     * @internal
+     * */
     data = {
         container: document.getElementById(''),
         elements: [],
@@ -128,26 +160,42 @@ export class RTreeRender extends Probe {
         ],
     };
 
-    /**@type {RTree|null}*/
+    /**
+     * the r-tree for render
+    */
     rtree: RTree;
 
+    /**
+     * the data spatial extent for render
+    */
     data_ext: RTreeRenderExtent = [0, 0, 0, 0];
+
+    /** @internal */
     coordConvert: RTreeRenderCanvasCoordConvertFuncType | null = null;
 
-    /**@type {cytoscape.Core}*/
+    /** @internal */
     cy: cytoscape.Core | null = null;
+
+    /** @internal */
     layout = null;
 
+    /** @internal */
     selected_node = null;
+
+    /** @internal */
     selected_entry = null;
+
+    /** @internal */
     search_mbr = null;
+
+    /** @internal */
     search_result_entries = [];
 
+    /** @internal */
     stateMachine = new RTreeStateMachine();
 
     /**
-     * @constructor
-     * @param {RTree} rtree
+     * @param {RTreeRenderOptions} options
      */
     constructor(options: RTreeRenderOptions) {
 
@@ -168,6 +216,7 @@ export class RTreeRender extends Probe {
         this.addTrigger("rtree:clear:finish", this.probeRtreeClearFinish.bind(this));
     }
 
+    /** @internal */
     initGraph() {
 
         this.cy = cytoscape(this.data);
@@ -226,12 +275,13 @@ export class RTreeRender extends Probe {
         })
     }
 
-
+    /** @internal */
     refreshGraphStyle() {
         this.refreshGraphDefaultStyle();
         this.refreshGraphStateStyle();
     }
 
+    /** @internal */
     refreshGraphDefaultStyle() {
         if (this.cy) {
             this.cy.nodes().style({
@@ -287,6 +337,7 @@ export class RTreeRender extends Probe {
         }
     }
 
+    /** @internal */
     refreshGraphStateStyle() {
 
         if (!this.cy) {
@@ -436,6 +487,7 @@ export class RTreeRender extends Probe {
         }
     }
 
+    /** @internal */
     refreshGraph() {
 
         if (this.cy) {
@@ -449,51 +501,38 @@ export class RTreeRender extends Probe {
 
     }
 
-    /**
-     *
-     * @param {string} tag
-     * @param {object} data
-     */
+
+    /** @internal */
     probeRtreeInsertFinish(tag: string, data: any) {
         this.stateMachine.setInsert(data["node"], data["entry"], data["record"], data["data"]);
         this.render(); //TODO only add insert node and edge
     }
 
+    /** @internal */
     probeRtreeSearchOverlapStart(tag: string, data: any) {
         this.stateMachine.startSearch(data["mbr"]);
     }
 
-    /**
-     *
-     * @param {string} tag
-     * @param {object} data
-     */
+    /** @internal */
     probeRtreeSearchOverlapFinish(tag: string, data: any) {
         this.stateMachine.finishSearch(data["result"]);
         this.refreshGraphStyle();
     }
 
+    /** @internal */
     probeRtreeSearchPath(tag: string, data: any) {
         const node = data["node"]
         const entry = data["entry"];
         this.stateMachine.addSearchPath(node, entry);
     }
 
-    /**
-     *
-     * @param {string} tag
-     * @param {object} data
-     */
+    /** @internal */
     probeRtreeDeleteFinish(tag: string, data: any) {
         this.stateMachine.setDelete();
         this.render();
     }
 
-    /**
- *
- * @param {string} tag
- * @param {object} data
- */
+    /** @internal */
     probeRtreeClearFinish(tag: string, data: any) {
 
         this.selected_node = null;
@@ -505,16 +544,16 @@ export class RTreeRender extends Probe {
     }
 
     /**
-     *
-     * @param {[number,number,number,number]} ext
+     * set the spatial extent for render
+     * @param ext the spatial extent, [xmin, ymin, xmax, ymax]
      */
-    setDataExtent(ext: RTreeRenderExtent) {
+    setDataExtent(ext: RTreeRenderExtent): void {
         this.data_ext = ext;
         this.coordConvert = this.getCanvasCoordFunc(ext);
     }
 
     /**
-     *
+     * @internal
      * @param {RTreeNode} node
      * @param {number} id
      * @returns {RTreeNode}
@@ -535,7 +574,7 @@ export class RTreeRender extends Probe {
     }
 
     /**
-     *
+     * @internal
      * @param {number} id
      * @returns {RTreeEntry}
      */
@@ -565,7 +604,7 @@ export class RTreeRender extends Probe {
     }
 
     /**
-     *
+     * @internal
      * @param {RTreeEntry} entry
      * @returns {RTreeNode}
      */
@@ -589,30 +628,27 @@ export class RTreeRender extends Probe {
         return null;
     }
 
-    /**
-     *
-     */
+    /** @internal */
     clearSeletedNodeAndEntry() {
         this.selected_node = null;
         this.selected_entry = null;
     }
 
-    /**
-     * @returns {void}
-     */
+    /** @internal */
     clearSearch() {
         this.search_mbr = null;
         this.search_result_entries = [];
     }
 
     /**
-     * @returns {void}
+     * start render
      */
     render() {
         this.graph_render();
         this.canvas_render();
     }
 
+    /** @internal */
     addNodeToGraph(node: RTreeNode | null) {
         if (node == null) {
             return;
@@ -669,9 +705,7 @@ export class RTreeRender extends Probe {
         })
     }
 
-    /**
-     * @returns {void}
-     */
+    /** @internal */
     graph_render() {
 
         const nodes = [];
@@ -708,11 +742,7 @@ export class RTreeRender extends Probe {
 
     }
 
-    /**
-     *
-     * @param {[number,number,number,number]} data_ext
-     * @returns {(number,number)=>[number,number]}
-     */
+    /** @internal */
     getCanvasCoordFunc(data_ext: RTreeRenderExtent): RTreeRenderCanvasCoordConvertFuncType {
 
         //TODO revert y coordinate.
@@ -735,9 +765,7 @@ export class RTreeRender extends Probe {
         return (x, y) => [dx + x * rx, dy + y * ry];
     }
 
-    /**
-     *
-     */
+    /** @internal */
     canvas_render() {
 
         const that = this;
@@ -747,8 +775,9 @@ export class RTreeRender extends Probe {
          * @param {CanvasRenderingContext2D} ctx
          * @param {RTreeMBR} mbr
          * @param {object} props
+         * @returns {void}
          */
-        function render_mbr(ctx: CanvasRenderingContext2D, mbr: RTreeMBR, props: object) {
+        function render_mbr(ctx: CanvasRenderingContext2D, mbr: RTreeMBR, props: object): void {
 
             const defaultProps = {
                 lineWidth: 1,
@@ -761,7 +790,7 @@ export class RTreeRender extends Probe {
 
             if (that.coordConvert === null) {
                 console.log("canvas coordinate convert function is null");
-                return null;
+                return;
             }
 
             const [xmin, ymin] = that.coordConvert(mbr.xmin, mbr.ymin);

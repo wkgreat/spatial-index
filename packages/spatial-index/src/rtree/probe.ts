@@ -2,6 +2,10 @@ import { sleep } from "../utils/utils";
 
 type ProbeCallback = (tag: string, object: any) => void;
 
+/**
+ * @internal
+ * @class Prob
+*/
 class Probe {
 
     /**

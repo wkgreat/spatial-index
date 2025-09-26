@@ -5,8 +5,10 @@ All kinds of spatial index implementation and visualization
 Visit [Web Demo](https://wkgreat.github.io/spatial-index/) to show the dynamic visualized structure of spatial indices.
 ![R-Tree Demo](./docs/rtree_web_demo.png)
 
+## API Documents
+https://wkgreat.github.io/spatial-index/api_docs/
 
-## Npm
+## NPM
 https://www.npmjs.com/package/spatial-index-js
 
 ## Index List

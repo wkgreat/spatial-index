@@ -1,10 +1,16 @@
-# spatial-index
+# spatial-index-js
 All kinds of spatial index implementation and visualization
 
-Visit [Web Demo](https://wkgreat.github.io/spatial-index/) to show the dynamic visualized structure of spatial indices.
+![Build](https://github.com/wkgreat/spatial-index/actions/workflows/deploy.yml/badge.svg) [![npm](https://img.shields.io/npm/v/spatial-index-js.svg)](https://www.npmjs.com/package/spatial-index-js) ![TypeScript](https://img.shields.io/badge/types-yes-blue.svg)
 
 ## Github
 https://github.com/wkgreat/spatial-index
+
+## API Documents
+https://wkgreat.github.io/spatial-index/api_docs/
+
+## Web Demo
+Visit [Web Demo](https://wkgreat.github.io/spatial-index/) to show the dynamic visualized structure of spatial indices.
 
 ## R-Tree
 

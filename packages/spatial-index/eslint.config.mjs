@@ -1,4 +1,3 @@
-import js from "@eslint/js";
 import globals from "globals";
 import { defineConfig } from "eslint/config";
 import eslintPluginJsdoc from "eslint-plugin-jsdoc";
@@ -60,7 +59,8 @@ export default defineConfig([
     },
     settings: {
       jsdoc: {
-        mode: 'typescript'
+        mode: 'typescript',
+        ignoreInternal: true
       }
     }
   },

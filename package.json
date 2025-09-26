@@ -10,6 +10,7 @@
     "packages/*"
   ],
   "scripts": {
+    "lint": "yarn workspace spatial-index-js run lint",
     "build:spatial-index": "yarn workspace spatial-index-js run build",
     "build:demo": "yarn workspace spatial-index-demos run build",
     "start:demo": "yarn run build && yarn workspace spatial-index-demos start",
@@ -18,7 +19,9 @@
     "benchmark": "yarn workspace spatial-index-benchmark run start",
     "deploy": "yarn workspace spatial-index-demos run deploy",
     "example": "yarn run build:spatial-index && yarn workspace spatial-index-examples run start",
-    "version": "lerna version --no-push --no-git-tag-version"
+    "version": "lerna version --no-push --no-git-tag-version",
+    "build:api_doc": "yarn workspace spatial-index-js run docs",
+    "collect_pages": "node collect_pages.js"
   },
   "devDependencies": {
     "@babel/core": "^7.28.4",
@@ -35,6 +38,7 @@
     "css-loader": "^7.1.2",
     "eslint": "^9.35.0",
     "eslint-plugin-jsdoc": "^55.4.0",
+    "fs-extra": "^11.3.2",
     "glob": "^11.0.3",
     "globals": "^16.4.0",
     "html-webpack-plugin": "^5.6.4",

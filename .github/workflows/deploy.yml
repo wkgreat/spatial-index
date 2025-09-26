@@ -28,9 +28,15 @@ jobs:
 
       - name: Build project
         run: yarn run build
+      
+      - name: Generate API Doc
+        run : yarn run build:api_doc
+      
+      - name: Collect Pages
+        run : yarn run collect_pages
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./packages/demos/dist
+          publish_dir: ./pages

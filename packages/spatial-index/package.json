@@ -51,7 +51,6 @@
   "scripts": {
     "build:types": "npx tsc --emitDeclarationOnly",
     "build": "yarn run build:types && rollup -c",
-    "deploy": "gh-pages -d dist",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "lint:strict": "eslint src --max-warnings=0",

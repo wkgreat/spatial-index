@@ -24,19 +24,23 @@
   "exports": {
     ".": {
       "import": "./dist/esm/index.js",
-      "require": "./dist/cjd/index.js"
+      "require": "./dist/cjd/index.js",
+      "types": "./dist/types/index.d.ts"
     },
     "./rtree": {
       "import": "./dist/esm/rtree/rtree.js",
-      "require": "./dist/cjs/rtree/rtree.js"
+      "require": "./dist/cjs/rtree/rtree.js",
+      "types": "./dist/types/rtree/rtree.d.ts"
     },
     "./rtree_render": {
       "import": "./dist/esm/rtree/rtree_render.js",
-      "require": "./dist/cjs/rtree/rtree_render.js"
+      "require": "./dist/cjs/rtree/rtree_render.js",
+      "types": "./dist/types/rtree/rtree_render.d.ts"
     },
     "./utils": {
       "import": "./dist/esm/utils/utils.js",
-      "require": "./dist/cjs/utils/utils.js"
+      "require": "./dist/cjs/utils/utils.js",
+      "types": "./dist/types/utils/utils.d.ts"
     }
   },
   "devDependencies": {
